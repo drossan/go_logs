@@ -12,7 +12,6 @@ var isInit bool
 var saveLogFile bool
 var logFileName string
 var logFilePath string
-var logger *log.Logger
 
 var notificationsEnabled bool
 
@@ -104,17 +103,17 @@ func loadSlackConfig() {
 	notifier = adapters.NewSlackNotifier()
 }
 
-func openLogFile() {
+func openLogFile() *os.File {
 	file, err := os.OpenFile(logFilePath+"/"+logFileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		log.Fatalf("Error opening log file: %v", err)
 	}
+	return file
+}
 
-	logger = log.New(file, "", log.LstdFlags)
-
-	defer func(file *os.File) {
-		if err := file.Close(); err != nil {
-			log.Fatalf("Error closing the log file: %v", err)
-		}
-	}(file)
+func closeLogFile(file *os.File) {
+	err := file.Close()
+	if err != nil {
+		log.Fatalf("Error closing the log file: %v", err)
+	}
 }
