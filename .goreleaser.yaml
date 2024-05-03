@@ -8,10 +8,6 @@ before:
 builds:
   - skip: true
 
-# No definir archives ya que no se generan binarios
-archives:
-  - skip: true
-
 # Configuración de lanzamiento: publicación en GitHub
 release:
   draft: false
