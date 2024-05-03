@@ -1,0 +1,18 @@
+# This is an example .goreleaser.yaml file with some sane defaults.
+# Make sure to check the documentation at https://goreleaser.com
+before:
+  hooks:
+    - go mod tidy
+changelog:
+  # Will not print any skipped entries
+  skip: false
+  # Will not sort the entries
+  sort: true
+  # Will not hide the preamble
+  hide: false
+  # Will not remove the markdown hash prefix
+  strip_hash: false
+  # Filters is a list of regular expressions which will remove the matched line.
+  filters:
+    - '^docs:'
+    - '^test:'
