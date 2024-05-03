@@ -6,11 +6,7 @@ changelog:
   skip: false
   # Will not sort the entries
   sort: true
-  # Will not hide the preamble
-  hide: false
-  # Will not remove the markdown hash prefix
-  strip_hash: false
-  # Filters is a list of regular expressions which will remove the matched line.
   filters:
-    - '^docs:'
-    - '^test:'
+    exclude:
+      - '^docs:'
+      - '^test:'
