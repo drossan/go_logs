@@ -1,6 +1,20 @@
 before:
   hooks:
     - go mod tidy
+    - go generate ./...
+
+# builds to be run
+builds: []
+
+# archives
+archives:
+  - format: binary
+    name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+
+# release to GitHub
+release:
+  draft: false
+
 changelog:
   # Will not print any skipped entries
   skip: false
