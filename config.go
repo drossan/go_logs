@@ -22,6 +22,14 @@ var notificationLogWarning bool
 var notificationLogInfo bool
 var notificationLogSuccess bool
 
+var notificationSettings = map[string]bool{
+	"FATAL":   notificationLogFatal,
+	"ERROR":   notificationLogError,
+	"WARNING": notificationLogWarning,
+	"INFO":    notificationLogInfo,
+	"SUCCESS": notificationLogSuccess,
+}
+
 var notifier *adapters.SlackNotifier
 
 var err error
@@ -82,6 +90,14 @@ func loadNotificationsConfig() {
 	notificationLogSuccess, err = strconv.ParseBool(os.Getenv("NOTIFICATION_SUCCESS_LOG"))
 	if err != nil {
 		log.Fatalf("Error parsing NOTIFICATION_SUCCESS_LOG: %v", err)
+	}
+
+	notificationSettings = map[string]bool{
+		"FATAL":   notificationLogFatal,
+		"ERROR":   notificationLogError,
+		"WARNING": notificationLogWarning,
+		"INFO":    notificationLogInfo,
+		"SUCCESS": notificationLogSuccess,
 	}
 }
 
