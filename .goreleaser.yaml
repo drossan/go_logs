@@ -3,14 +3,8 @@ before:
     - go mod tidy
     - go generate ./...
 
-# Asegurarse de que la sección de builds está vacía y correctamente configurada para evitar compilación
 builds:
-  - id: "library"
-    goos: ["linux"]
-    goarch: ["amd64"]
-    hooks:
-      pre: echo "Building for library only, no binary required"
-    # No usar -o para especificar un binario de salida
+  skip: true
 
 release:
   draft: false
