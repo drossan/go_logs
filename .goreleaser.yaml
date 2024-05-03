@@ -1,14 +1,20 @@
+# Preparación: Limpieza y generación de archivos necesarios
 before:
   hooks:
     - go mod tidy
     - go generate ./...
 
-builds:
-  skip: true
+# Omite completamente la sección de builds
+builds: []
 
+# No definir archives ya que no se generan binarios
+archives: []
+
+# Configuración de lanzamiento: publicación en GitHub
 release:
   draft: false
 
+# Configuración de changelog
 changelog:
   skip: false
   sort: true
