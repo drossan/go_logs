@@ -55,7 +55,7 @@ func Init() {
 
 	loadNotificationsConfig()
 
-	notificationsEnabled, err := strconv.ParseBool(os.Getenv("NOTIFICATIONS_SLACK_ENABLED"))
+	notificationsEnabled, err = strconv.ParseBool(os.Getenv("NOTIFICATIONS_SLACK_ENABLED"))
 	if err != nil {
 		log.Fatalf("Error parsing NOTIFICATIONS_SLACK_ENABLED: %v", err)
 	}
@@ -63,7 +63,6 @@ func Init() {
 	if notificationsEnabled {
 		loadSlackConfig()
 	}
-
 }
 
 func loadNotificationsConfig() {
