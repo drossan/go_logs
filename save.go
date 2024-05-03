@@ -7,20 +7,22 @@ func saveLog(message string, logType string) {
 		Init()
 	}
 
-	if notificationSettings[logType] && saveLogFile {
+	if notificationSettings[logType] {
 		registerMessage(message)
 	}
 }
 
 func registerMessage(message string) {
-	file := openLogFile()
-	logger := log.New(file, "", log.LstdFlags)
+	if saveLogFile {
+		file := openLogFile()
+		logger := log.New(file, "", log.LstdFlags)
 
-	if logger != nil {
-		logger.Println(message)
+		if logger != nil {
+			logger.Println(message)
+		}
+
+		closeLogFile(file)
 	}
-
-	closeLogFile(file)
 
 	if notificationsEnabled {
 		_ = notifier.SendNotification(message)
