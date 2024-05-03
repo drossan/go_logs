@@ -15,7 +15,6 @@ release:
 # Configuración de changelog
 changelog:
   skip: false
-  sort: true
   filters:
     exclude:
       - '^docs:'
