@@ -5,10 +5,12 @@ before:
     - go generate ./...
 
 # Omite completamente la sección de builds
-builds: []
+builds:
+  - skip: true
 
 # No definir archives ya que no se generan binarios
-archives: []
+archives:
+  - skip: true
 
 # Configuración de lanzamiento: publicación en GitHub
 release:
