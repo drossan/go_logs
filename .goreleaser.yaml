@@ -3,22 +3,19 @@ before:
     - go mod tidy
     - go generate ./...
 
-# builds to be run
+# Eliminar o vaciar la sección de builds
 builds: []
 
-# archives
-archives:
-  - format: binary
-    name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+# Eliminar o comentar la sección de archives si no se necesita
+# archives:
+#   - format: binary
+#     name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
 
-# release to GitHub
 release:
   draft: false
 
 changelog:
-  # Will not print any skipped entries
   skip: false
-  # Will not sort the entries
   sort: true
   filters:
     exclude:
