@@ -14,21 +14,21 @@ func FatalLog(message string) {
 
 func ErrorLog(message string) {
 	color.Set(color.FgRed)
-	log.Println(" 🚨 ", message)
+	log.Println(message)
 	color.Unset()
-	saveLog(" 🚨 "+message, "ERROR")
+	saveLog(message, "ERROR")
 }
 
 func InfoLog(message string) {
 	color.Set(color.FgYellow)
-	log.Println(" ⚠️ ", message)
+	log.Println(message)
 	color.Unset()
-	saveLog(" ⚠️  "+message, "INFO")
+	saveLog(message, "INFO")
 }
 
 func SuccessLog(message string) {
 	color.Set(color.FgGreen)
-	log.Println(" ✅ ", message)
+	log.Println(message)
 	color.Unset()
-	saveLog(" ✅ "+message, "SUCCESS")
+	saveLog(message, "SUCCESS")
 }
