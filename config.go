@@ -119,7 +119,13 @@ func getNotificationSettings(level string) bool {
 }
 
 func loadSlackConfig() {
-	notifier = adapters.NewSlackNotifier()
+	// Issue #7 Fix: Handle error from NewSlackNotifier
+	var err error
+	notifier, err = adapters.NewSlackNotifier()
+	if err != nil {
+		// Log warning but don't fail - notifications will be disabled
+		log.Printf("Warning: Slack notifications disabled: %v", err)
+	}
 }
 
 func openLogFile() *os.File {
@@ -132,7 +138,9 @@ func openLogFile() *os.File {
 		fullPath = filepath.Join(logFilePath, logFileName)
 	}
 
-	file, err := os.OpenFile(fullPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	// Issue #6 Fix: Use 0600 permissions (owner read/write only) instead of 0666 (world readable)
+	// Logs may contain sensitive information, so they should not be world-readable
+	file, err := os.OpenFile(fullPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
 		log.Fatalf("Error opening log file: %v", err)
 	}
