@@ -113,6 +113,26 @@ func NewLogger(opts ...Option) (Logger, error) {
 			l.mu.Lock()
 			l.stackTraceLevel = o.Level
 			l.mu.Unlock()
+		case *MultiOutputOption:
+			l.mu.Lock()
+			l.output = NewMultiWriter(o.Writers...)
+			l.mu.Unlock()
+		case *RotatingFileOption:
+			writer, err := NewRotatingFileWriter(o.Filename, o.MaxSizeMB, o.MaxBackups)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create rotating file writer: %w", err)
+			}
+			l.mu.Lock()
+			l.output = writer
+			l.mu.Unlock()
+		case *RotatingFileEnhancedOption:
+			writer, err := NewRotatingFileWriterWithConfig(o.Config)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create enhanced rotating file writer: %w", err)
+			}
+			l.mu.Lock()
+			l.output = writer
+			l.mu.Unlock()
 		}
 	}
 
@@ -311,6 +331,11 @@ func (l *LoggerImpl) writeEntry(entry *Entry) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.output.Write(formatted)
+
+	// Flush if the output supports Sync (e.g., RotatingFileWriter)
+	if syncer, ok := l.output.(interface{ Sync() error }); ok {
+		syncer.Sync()
+	}
 }
 
 // getFormatter returns the current formatter with read lock

@@ -230,3 +230,31 @@ type RotatingFileEnhancedOption struct {
 func WithRotatingFileEnhanced(config RotatingFileConfig) Option {
 	return &RotatingFileEnhancedOption{Config: config}
 }
+
+// RotatingFileOption is the actual implementation for WithRotatingFile option
+type RotatingFileOption struct {
+	Filename   string
+	MaxSizeMB  int
+	MaxBackups int
+}
+
+// WithRotatingFile creates a simple rotating file writer.
+// This is a convenience wrapper around WithRotatingFileEnhanced with sensible defaults.
+//
+// Parameters:
+//   - filename: Path to the log file
+//   - maxSizeMB: Maximum size in megabytes before rotation
+//   - maxBackups: Maximum number of backup files to keep
+//
+// Example:
+//
+//	logger, _ := go_logs.New(
+//	    go_logs.WithRotatingFile("/var/log/app.log", 100, 5),
+//	)
+func WithRotatingFile(filename string, maxSizeMB int, maxBackups int) Option {
+	return &RotatingFileOption{
+		Filename:   filename,
+		MaxSizeMB:  maxSizeMB,
+		MaxBackups: maxBackups,
+	}
+}
