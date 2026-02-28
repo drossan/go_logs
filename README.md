@@ -1,318 +1,448 @@
-# Go_Logs - Biblioteca de Registro para Go
+# Go_Logs v3 - Biblioteca de Logging Moderna para Go
 
 [![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://pkg.go.dev/github.com/drossan/go_logs)
+[![Go Report Card](https://goreportcard.com/badge/github.com/drossan/go_logs)](https://goreportcard.com/report/github.com/drossan/go_logs)
 
-## Descripción
+Biblioteca de logging estructurado para Go con campos tipados, múltiples formatters (Text/JSON), child loggers, context propagation, sistema de hooks extensible, y rotación de archivos. **100% backward compatible con v2**.
 
-Este paquete está diseñado para manejar el registro de eventos y errores de una manera centralizada en aplicaciones Go. Proporciona funcionalidades para registrar mensajes de diferentes niveles de severidad con colores en terminal, archivo persistente, y notificaciones a través de Slack.
+## Características Principales
 
-### Características Principales
+### v3 Features (Modernas)
 
-- ✅ **Múltiples niveles de registro**: Fatal, Error, Warning, Info, Success
-- ✅ **Salida con colores**: Mensajes coloreados en terminal para mejor legibilidad
-- ✅ **Archivo persistente**: Logging eficiente con buffering (98% más rápido que versiones anteriores)
-- ✅ **Notificaciones Slack**: Configurable para cada nivel de log
-- ✅ **Soporte para formateo**: Funciones tipo `fmt.Sprintf` (Infof, Errorf, etc.)
-- ✅ **Soporte para contexto**: Funciones con `context.Context` para distributed tracing
-- ✅ **Thread-safe**: Protección contra race conditions con mutex
-- ✅ **Cero dependencias externas**: Solo usa bibliotecas estándar de Go
+- Structured logging con campos tipados (`String`, `Int`, `Err`, etc.)
+- Child loggers con propagación de campos (`logger.With(...)`)
+- Context propagation real (`WithTraceID`, `WithSpanID`)
+- Dual formatters: TextFormatter (dev) + JSONFormatter (prod)
+- Sistema de hooks extensible (Slack, Sentry, métricas)
+- RotatingFileWriter sin dependencias externas
+- Redactor automático de datos sensibles (password, token, etc.)
+- Interfaz Logger inyectable para testing
 
-## Niveles de Registro
+### v2 Features (Legacy - Backward Compatible)
 
-El paquete ofrece los siguientes niveles de registro:
+- Múltiples niveles de registro: Trace, Debug, Info, Warn, Error, Fatal, Success
+- Salida con colores ANSI para terminal
+- Archivo persistente con buffering
+- Notificaciones Slack configurables
+- Thread-safe con mutex
+- Cero dependencias externas (solo color y slack)
 
-| Función | Nivel | Color | Uso |
-|---------|-------|-------|-----|
-| `FatalLog()` | FATAL | Rojo 💣 | Errores fatales que terminan el programa |
-| `ErrorLog()` | ERROR | Rojo | Errores que no requieren terminar el programa |
-| `WarningLog()` | WARNING | Amarillo | Advertencias potenciales |
-| `InfoLog()` | INFO | Amarillo | Eventos informativos |
-| `SuccessLog()` | SUCCESS | Verde | Operaciones exitosas |
-
-## Configuración
-
-La configuración se maneja a través de variables de entorno:
-
-```dotenv
-# Archivo de Log
-SAVE_LOG_FILE=1                    # Habilitar logging a archivo (0 o 1)
-LOG_FILE_NAME=app.log              # Nombre del archivo (default: log.txt)
-LOG_FILE_PATH=/var/log/app         # Directorio para logs (default: actual)
-
-# Sistema de Nivel de Log (Nuevo - Estilo Syslog)
-LOG_LEVEL=info                     # Nivel de log: trace, debug, info, warn, error, fatal, silent
-
-# Notificaciones por Nivel (Sistema Legacy - Mantiene compatibilidad)
-NOTIFICATION_FATAL_LOG=1           # Enviar fatal logs a Slack (0 o 1)
-NOTIFICATION_ERROR_LOG=1           # Enviar error logs a Slack (0 o 1)
-NOTIFICATION_WARNING_LOG=1         # Enviar warning logs a Slack (0 o 1)
-NOTIFICATION_INFO_LOG=1            # Enviar info logs a Slack (0 o 1)
-NOTIFICATION_SUCCESS_LOG=1         # Enviar success logs a Slack (0 o 1)
-
-# Configuración de Slack
-NOTIFICATIONS_SLACK_ENABLED=1      # Habilitar notificaciones (0 o 1)
-SLACK_TOKEN=xoxb-your-token        # Token de bot de Slack
-SLACK_CHANNEL_ID=C1234567890       # ID del canal de Slack
-```
-
-### Variables de Entorno
-
-| Variable | Descripción | Default |
-|----------|-------------|---------|
-| `SAVE_LOG_FILE` | Habilitar logging a archivo | 0 |
-| `LOG_FILE_NAME` | Nombre del archivo de log | log.txt |
-| `LOG_FILE_PATH` | Directorio para logs | Directorio actual |
-| `LOG_LEVEL` | **Nivel de log (syslog-style)** | - |
-| `NOTIFICATION_FATAL_LOG` | Notificar fatal a Slack | 0 |
-| `NOTIFICATION_ERROR_LOG` | Notificar errors a Slack | 0 |
-| `NOTIFICATION_WARNING_LOG` | Notificar warnings a Slack | 0 |
-| `NOTIFICATION_INFO_LOG` | Notificar info a Slack | 0 |
-| `NOTIFICATION_SUCCESS_LOG` | Notificar success a Slack | 0 |
-| `NOTIFICATIONS_SLACK_ENABLED` | Habilitar Slack | 0 |
-| `SLACK_TOKEN` | Token de Slack | - |
-| `SLACK_CHANNEL_ID` | ID del canal | - |
-
-#### Sistema de Nivel de Log (LOG_LEVEL)
-
-El sistema `LOG_LEVEL` usa umbrales numéricos estilo syslog. Los mensajes con nivel >= configurado serán notificados:
-
-| Nivel | Valor | Descripción |
-|-------|-------|-------------|
-| `trace` | 10 | Información extremadamente detallada (high-volume) |
-| `debug` | 20 | Información detallada para troubleshooting |
-| `info` | 30 | Mensajes operacionales generales |
-| `warn` | 40 | Situaciones potenciales o no críticas |
-| `error` | 50 | Errores operacionales que requieren atención |
-| `fatal` | 60 | Errores críticos que terminan la aplicación |
-| `silent` | 0 | Deshabilita todas las notificaciones |
-
-**Ejemplos de uso:**
+## Instalación
 
 ```bash
-# Notificar info y superiores (info, warn, error, fatal)
-LOG_LEVEL=info
-
-# Notificar solo errores y fatales
-LOG_LEVEL=error
-
-# Notificar todo (incluso trace)
-LOG_LEVEL=trace
-
-# Deshabilitar notificaciones
-LOG_LEVEL=silent
+go get github.com/drossan/go_logs@v3
 ```
 
-#### Compatibilidad Retroactiva
+## Inicio Rápido
 
-**Importante:** Si configuras las variables `NOTIFICATION_*_LOG` (sistema legacy), este tendrá **precedencia** sobre `LOG_LEVEL`. Ambos sistemas pueden coexistir, pero el sistema legacy se usa primero si está configurado.
-
-**Recomendación:** Para nuevos proyectos, usa `LOG_LEVEL`. Para proyectos existentes, puedes migrar gradualmente.
-
-## Uso Básico
+### v3 API (Recomendada)
 
 ```go
 package main
 
 import (
+    "os"
     "github.com/drossan/go_logs"
 )
 
 func main() {
-    // Inicializar el logger
-    go_logs.Init()
-    defer go_logs.Close() // Cerrar archivo al finalizar
+    // Crear logger con configuración
+    logger := go_logs.New(
+        go_logs.WithLevel(go_logs.InfoLevel),
+        go_logs.WithFormatter(go_logs.NewTextFormatter()),
+        go_logs.WithOutput(os.Stdout),
+    )
 
-    // Uso básico
-    go_logs.InfoLog("Servidor iniciado en el puerto 8080")
-    go_logs.SuccessLog("Conexión a base de datos establecida")
-    go_logs.WarningLog("Conexión a base de datos cerca del límite")
-    go_logs.ErrorLog("Fallo al conectar a cache")
+    // Logging estructurado con campos tipados
+    logger.Info("connection established",
+        go_logs.String("host", "db.example.com"),
+        go_logs.Int("port", 5432),
+    )
+
+    // Child logger con campos heredados
+    reqLogger := logger.With(
+        go_logs.String("request_id", "abc-123"),
+        go_logs.String("user_id", "user-456"),
+    )
+    reqLogger.Info("request started") // Incluye request_id y user_id
 }
 ```
 
-## Uso Avanzado
-
-### Funciones con Formato
-
-Similar a `fmt.Sprintf`, puedes usar las funciones con `f` al final:
+### v2 API (Legacy - Drop-in Compatible)
 
 ```go
 package main
 
-import (
-    "github.com/drossan/go_logs"
-)
+import "github.com/drossan/go_logs"
 
 func main() {
-    go_logs.Init()
+    go_logs.Init()         // Opcional, auto-inicializa
+    defer go_logs.Close()
 
-    // Formato con argumentos
-    go_logs.Infof("Servidor iniciado en el puerto %d", 8080)
-    go_logs.Successf("Conectado a %s en %dms", host, latency)
-    go_logs.Errorf("Error al procesar solicitud de %s: %v", user, err)
-    go_logs.Warningf("Usando deprecated API versión %s", apiVersion)
+    go_logs.InfoLog("Servidor iniciado")
+    go_logs.ErrorLog("Error de conexión")
+    go_logs.Infof("Puerto: %d", 8080)
 }
 ```
 
-### Funciones con Contexto
+## Niveles de Log (Syslog-style)
 
-Para distributed tracing y cancelación:
+| Nivel | Valor | Color | Uso |
+|-------|-------|-------|-----|
+| Trace | 10 | Cyan | Traza detallada de ejecución |
+| Debug | 20 | HiBlue | Información de debugging |
+| Info | 30 | Yellow | Eventos informativos |
+| Warn | 40 | HiYellow | Advertencias |
+| Error | 50 | Red | Errores |
+| Fatal | 60 | HiRed | Errores fatales (termina programa) |
+| Success | - | Green | Operaciones exitosas (v2 legacy) |
+| Silent | 0 | - | Deshabilita todos los logs |
+
+## Formatters
+
+### TextFormatter (Desarrollo)
+
+Salida legible con colores ANSI:
+
+```
+[2026/02/28 17:30:00] INFO connection established host=db.example.com port=5432
+```
+
+### JSONFormatter (Producción)
+
+JSON estructurado para ELK, Loki, Datadog:
+
+```json
+{"timestamp":"2026-02-28T17:30:00Z","level":"INFO","message":"connection established","fields":{"host":"db.example.com","port":5432}}
+```
 
 ```go
-package main
+// Usar JSONFormatter
+logger := go_logs.New(
+    go_logs.WithFormatter(go_logs.NewJSONFormatter()),
+)
+```
 
+## Structured Fields
+
+```go
+logger.Info("user action",
+    go_logs.String("action", "login"),
+    go_logs.String("username", "john"),
+    go_logs.Int("duration_ms", 150),
+    go_logs.Bool("success", true),
+    go_logs.Float64("rate", 3.14),
+    go_logs.Err(err),
+    go_logs.Any("metadata", map[string]string{"ip": "192.168.1.1"}),
+)
+```
+
+## Child Loggers
+
+Crea loggers con campos pre-inyectados que se heredan:
+
+```go
+// Logger base
+logger := go_logs.New(go_logs.WithLevel(go_logs.InfoLevel))
+
+// Child logger con campos de request
+reqLogger := logger.With(
+    go_logs.String("request_id", "abc-123"),
+    go_logs.String("user_id", "user-456"),
+)
+
+// Todos estos logs incluyen request_id y user_id
+reqLogger.Info("request started")
+reqLogger.Info("processing data")
+reqLogger.Error("validation failed")
+```
+
+## Context Propagation
+
+Extrae automáticamente trace_id y span_id del contexto:
+
+```go
 import (
     "context"
     "github.com/drossan/go_logs"
-    "time"
 )
 
-func main() {
-    go_logs.Init()
+func handler(ctx context.Context) {
+    // Inyectar trace ID en contexto
+    ctx = go_logs.WithTraceID(ctx, "trace-789")
+    ctx = go_logs.WithSpanID(ctx, "span-101")
 
-    ctx := context.Background()
-
-    // Con contexto
-    go_logs.InfoLogCtx(ctx, "Procesando solicitud")
-
-    // Combinado: contexto + formato
-    go_logs.InfoLogCtxf(ctx, "Usuario %s inició sesión", username)
-    go_logs.ErrorLogCtxf(ctx, "Fallo en operación: %v", err)
+    // El logger extrae automáticamente del contexto
+    logger := go_logs.New()
+    logger.LogCtx(ctx, go_logs.InfoLevel, "processing request")
+    // Output incluye: trace_id=trace-789 span_id=span-101
 }
 ```
 
-### Ejemplo Completo con Cleanup
+## Hooks System
+
+Sistema extensible para enviar logs a múltiples destinos:
 
 ```go
-package main
-
-import (
-    "github.com/drossan/go_logs"
-    "os"
-)
-
-func main() {
-    // Configurar variables de entorno
-    os.Setenv("SAVE_LOG_FILE", "1")
-    os.Setenv("LOG_FILE_NAME", "app.log")
-    os.Setenv("NOTIFICATION_INFO_LOG", "1")
-
-    // Inicializar
-    go_logs.Init()
-    defer go_logs.Close() // Importante: cerrar al finalizar
-
-    // Verificar si Slack está configurado
-    if go_logs.IsNotifierEnabled() {
-        go_logs.InfoLog("Notificaciones de Slack activas")
-    } else {
-        go_logs.WarningLog("Slack no está configurado")
-    }
-
-    // Logging en diferentes niveles
-    go_logs.InfoLog("Aplicación iniciada")
-    go_logs.SuccessLog("Configuración cargada correctamente")
-
-    // Simular operaciones
-    if err := runApplication(); err != nil {
-        go_logs.Errorf("Error fatal: %v", err)
-        go_logs.FatalLog("Terminando aplicación")
-    }
+// Hook personalizado
+func myHook(entry *go_logs.Entry) error {
+    // Enviar a Sentry, métricas, etc.
+    return nil
 }
 
-func runApplication() error {
-    go_logs.Infof("Procesando %d registros", 1000)
-    // ... lógica de la aplicación
-    return nil
+logger := go_logs.New(
+    go_logs.WithHook(go_logs.NewFuncHook(myHook)),
+)
+```
+
+### Slack Hook
+
+```go
+import "github.com/drossan/go_logs/hooks"
+
+slackHook := hooks.NewSlackHook("xoxb-token", "C123456")
+logger := go_logs.New(
+    go_logs.WithHook(slackHook),
+)
+```
+
+## Rotating File Writer
+
+Rotación por tamaño sin dependencias externas:
+
+```go
+logger := go_logs.New(
+    go_logs.WithRotatingFile("/var/log/app.log", 100, 5),
+    // 100MB max, 5 backups
+)
+```
+
+O via variables de entorno:
+
+```bash
+LOG_MAX_SIZE=100      # MB antes de rotar
+LOG_MAX_BACKUPS=5     # Archivos backup a mantener
+```
+
+## Redactor de Datos Sensibles
+
+Enmascara automáticamente campos sensibles:
+
+```go
+logger := go_logs.New(
+    go_logs.WithCommonRedaction(),
+)
+
+logger.Info("user login",
+    go_logs.String("username", "john"),
+    go_logs.String("password", "secret123"), // Output: password=***
+)
+```
+
+Campos enmascarados por defecto: `password`, `passwd`, `pwd`, `token`, `secret`, `api_key`, `apikey`, `authorization`, `auth`.
+
+## Configuración
+
+### Variables de Entorno
+
+```bash
+# Nivel de log (syslog-style)
+LOG_LEVEL=info              # trace, debug, info, warn, error, fatal, silent
+
+# Formato de salida
+LOG_FORMAT=text             # text (dev) o json (prod)
+
+# Archivo de log
+SAVE_LOG_FILE=1
+LOG_FILE_NAME=app.log
+LOG_FILE_PATH=/var/log
+
+# Rotación de archivos (v3)
+LOG_MAX_SIZE=100            # MB antes de rotar
+LOG_MAX_BACKUPS=5           # Archivos backup a mantener
+
+# Slack
+SLACK_TOKEN=xoxb-xxx
+SLACK_CHANNEL_ID=C123456
+
+# Notificaciones por nivel (v2 legacy)
+NOTIFICATION_FATAL_LOG=1
+NOTIFICATION_ERROR_LOG=1
+NOTIFICATION_WARNING_LOG=1
+NOTIFICATION_INFO_LOG=1
+NOTIFICATION_SUCCESS_LOG=1
+```
+
+### Configuración Programática (v3)
+
+```go
+logger := go_logs.New(
+    go_logs.WithLevel(go_logs.DebugLevel),
+    go_logs.WithFormatter(go_logs.NewJSONFormatter()),
+    go_logs.WithOutput(os.Stdout),
+    go_logs.WithRotatingFile("/var/log/app.log", 100, 5),
+    go_logs.WithHook(myCustomHook),
+    go_logs.WithCommonRedaction(),
+)
+```
+
+## API v3 Completa
+
+### Logger Interface
+
+```go
+type Logger interface {
+    // Logging básico
+    Log(level Level, msg string, fields ...Field)
+    LogCtx(ctx context.Context, level Level, msg string, fields ...Field)
+
+    // Convenience methods
+    Trace(msg string, fields ...Field)
+    Debug(msg string, fields ...Field)
+    Info(msg string, fields ...Field)
+    Warn(msg string, fields ...Field)
+    Error(msg string, fields ...Field)
+    Fatal(msg string, fields ...Field)
+
+    // Child logger
+    With(fields ...Field) Logger
+
+    // Control
+    SetLevel(level Level)
+    GetLevel() Level
+    Sync() error
 }
 ```
 
-## API Completa
+### Field Helpers
+
+```go
+go_logs.String("key", "value")
+go_logs.Int("count", 42)
+go_logs.Int64("id", 123456789)
+go_logs.Float64("rate", 3.14)
+go_logs.Bool("enabled", true)
+go_logs.Err(err)
+go_logs.Any("data", struct{...}{...})
+```
+
+## API v2 (Legacy)
 
 ### Funciones Básicas
 
-- `FatalLog(message string)` - Log fatal y termina el programa
-- `ErrorLog(message string)` - Log de error
-- `WarningLog(message string)` - Log de advertencia
-- `InfoLog(message string)` - Log informativo
-- `SuccessLog(message string)` - Log de éxito
+```go
+go_logs.FatalLog(message string)
+go_logs.ErrorLog(message string)
+go_logs.WarningLog(message string)
+go_logs.InfoLog(message string)
+go_logs.SuccessLog(message string)
+```
 
-### Funciones con Formato (fmt.Sprintf-like)
+### Funciones con Formato
 
-- `Fatalf(format string, args ...interface{})`
-- `Errorf(format string, args ...interface{})`
-- `Warningf(format string, args ...interface{})`
-- `Infof(format string, args ...interface{})`
-- `Successf(format string, args ...interface{})`
+```go
+go_logs.Fatalf(format string, args ...interface{})
+go_logs.Errorf(format string, args ...interface{})
+go_logs.Warningf(format string, args ...interface{})
+go_logs.Infof(format string, args ...interface{})
+go_logs.Successf(format string, args ...interface{})
+```
 
 ### Funciones con Contexto
 
-- `ErrorLogCtx(ctx context.Context, message string)`
-- `WarningLogCtx(ctx context.Context, message string)`
-- `InfoLogCtx(ctx context.Context, message string)`
-- `SuccessLogCtx(ctx context.Context, message string)`
+```go
+go_logs.ErrorLogCtx(ctx context.Context, message string)
+go_logs.WarningLogCtx(ctx context.Context, message string)
+go_logs.InfoLogCtx(ctx context.Context, message string)
+go_logs.SuccessLogCtx(ctx context.Context, message string)
+```
 
-### Funciones Combinadas (Contexto + Formato)
+## Performance
 
-- `ErrorLogCtxf(ctx context.Context, format string, args ...interface{})`
-- `WarningLogCtxf(ctx context.Context, format string, args ...interface{})`
-- `InfoLogCtxf(ctx context.Context, format string, args ...interface{})`
-- `SuccessLogCtxf(ctx context.Context, format string, args ...interface{})`
+| Métrica | Resultado | Target |
+|---------|-----------|--------|
+| Fast-path filtering | 0.32 ns/op | < 5 ns |
+| Field creation | 0.34 ns/op, 0 allocs | < 10 ns |
+| TextFormatter | 220.6 ns/op | < 500 ns |
+| JSONFormatter | 249.3 ns/op | < 1 µs |
+| RotatingFileWriter | 16M msg/sec | - |
 
-### Funciones de Control
+## Migración v2 → v3
 
-- `Init()` - Inicializa el logger con configuración de entorno
-- `Close()` - Cierra el archivo de log (flush de buffers)
-- `IsNotifierEnabled() bool` - Verifica si Slack notifications están activas
+Ver [MIGRATION.md](MIGRATION.md) para guía completa.
 
-## Mejoras de Rendimiento
+### Opciones de Migración
 
-v2.0+ incluye mejoras significativas de rendimiento:
+1. **Drop-in**: Actualizar dependencia, sin cambios de código
+2. **Gradual**: Mezclar v2 y v3 en misma aplicación
+3. **Full**: Adoptar todas las features de v3
 
-- **Archivo persistente**: 98% más rápido (23,099ns → 400ns por operación)
-- **Buffering con bufio**: 63% menos allocations de memoria
-- **Thread-safe**: Protección con mutex para concurrencia
-- **Caché de env vars**: Evita llamadas repetidas a os.Getenv()
+### Ejemplo de Migración Gradual
+
+```go
+// v2 (sigue funcionando)
+go_logs.InfoLog("legacy code")
+
+// v3 (nuevo código)
+logger := go_logs.New(go_logs.WithLevel(go_logs.InfoLevel))
+logger.Info("new code", go_logs.String("feature", "v3"))
+```
 
 ## Testing
 
-El paquete incluye más de 30 tests con 83.5% de cobertura:
-
 ```bash
-# Ejecutar todos los tests
-go test ./...
+# Ejecutar tests
+GO111MODULE=on go test ./...
 
-# Ejecutar con cobertura
-go test -cover ./...
+# Con race detector
+GO111MODULE=on go test -race ./...
 
-# Ejecutar benchmarks
-go test -bench=. -benchmem ./...
+# Benchmarks
+GO111MODULE=on go test -bench=. -benchmem
+
+# Cobertura
+GO111MODULE=on go test -coverprofile=coverage.out ./...
+GO111MODULE=on go tool cover -html=coverage.out
 ```
 
-## Contribución
+- 60+ test functions
+- 30+ benchmarks
+- ~90% coverage en código crítico
+- Race detector clean
 
-Las contribuciones son bienvenidas. Por favor:
+## Documentación
 
-1. Fork el repositorio
-2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abre un Pull Request
-
-## Licencia
-
-Este paquete se ofrece bajo los términos de la Licencia MIT. Lee el archivo LICENSE para más detalles.
+- [MIGRATION.md](MIGRATION.md) - Guía de migración v2 → v3
+- [IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md) - Resumen técnico
+- [CLAUDE.md](CLAUDE.md) - Guía para Claude Code
+- [GoDoc](https://pkg.go.dev/github.com/drossan/go_logs) - Referencia de API
 
 ## Changelog
 
-### v2.0 (Última)
+### v3.0 (Actual)
 
-- ✅ **API mejorada**: Funciones con formato y soporte de contexto
-- ✅ **Performance**: 98% más rápido con archivo persistente y buffering
-- ✅ **WarningLog**: Función de advertencia agregada
-- ✅ **Tests**: 83.5% de cobertura con 30+ tests
-- ✅ **Thread-safe**: Protección contra race conditions
-- ✅ **Documentación**: Godoc completa en todas las funciones exportadas
+- Structured logging con campos tipados
+- Child loggers con propagación de campos
+- Context propagation real (trace_id, span_id)
+- Dual formatters: TextFormatter + JSONFormatter
+- Sistema de hooks extensible
+- RotatingFileWriter sin dependencias
+- Redactor de datos sensibles
+- Interfaz Logger inyectable
+- 100% backward compatible con v2
+
+### v2.0
+
+- API mejorada con funciones con formato
+- Performance 98% más rápido con buffering
+- Soporte de contexto para distributed tracing
+- WarningLog agregado
+- 83.5% de cobertura con tests
 
 ### v1.0
 
-- Versión inicial con logging básico y notificaciones Slack
+- Versión inicial con logging básico y Slack
+
+## Licencia
+
+MIT License - ver [LICENSE](LICENSE) para más detalles.
