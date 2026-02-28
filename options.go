@@ -72,12 +72,6 @@ func WithOutputFlags(flags int) Option {
 
 // Placeholder interfaces that will be implemented in later phases:
 
-// Formatter defines how to convert an Entry to bytes.
-// Will be implemented in Phase 2 (Output Layer).
-type Formatter interface {
-	Format(entry *Entry) ([]byte, error)
-}
-
 // Hook defines an extension point for processing log entries.
 // Will be implemented in Phase 4 (Extensibility).
 type Hook interface {

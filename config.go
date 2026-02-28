@@ -175,6 +175,23 @@ func loadLogLevel() {
 	}
 }
 
+// loadLogFormat loads the LOG_FORMAT environment variable and returns the appropriate formatter.
+// Supports: text, json (case-insensitive, default: text)
+//
+// This is used by the v3 API to configure the default formatter based on environment.
+func loadLogFormat() Formatter {
+	format := os.Getenv("LOG_FORMAT")
+	switch strings.ToLower(format) {
+	case "json":
+		return NewJSONFormatter()
+	case "text", "":
+		return NewTextFormatter()
+	default:
+		log.Printf("Warning: Unknown LOG_FORMAT '%s', using text format", format)
+		return NewTextFormatter()
+	}
+}
+
 func loadNotificationsConfig() {
 	var err error // Issue #3 Fix: Local error variable instead of global
 

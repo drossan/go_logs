@@ -48,7 +48,7 @@ func NewLogger(opts ...Option) (Logger, error) {
 	l := &LoggerImpl{
 		level:     InfoLevel,
 		output:    os.Stdout,
-		formatter: nil, // Will use default in Phase 2
+		formatter: loadLogFormat(), // Load from LOG_FORMAT env var
 		hooks:     []Hook{},
 		fields:    []Field{},
 		flags:     0,
@@ -244,15 +244,32 @@ func (l *LoggerImpl) extractContextFields(ctx context.Context) []Field {
 	return []Field{}
 }
 
-// writeEntry formats and writes the log entry
+// writeEntry formats and writes the log entry using the configured formatter
 func (l *LoggerImpl) writeEntry(entry *Entry) {
-	// For Phase 1, use simple string formatting
-	// In Phase 2, this will use the configured formatter
-	output := entry.String()
+	// Get formatter (use TextFormatter as default if none configured)
+	formatter := l.getFormatter()
+	if formatter == nil {
+		// Fallback to TextFormatter if none configured
+		formatter = NewTextFormatter()
+	}
+
+	// Format the entry
+	formatted, err := formatter.Format(entry)
+	if err != nil {
+		// If formatting fails, write error to stderr and use simple string format
+		fmt.Fprintf(os.Stderr, "Format error: %v\n", err)
+		formatted = []byte(entry.String() + "\n")
+	}
 
 	// Write to output
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.output.Write([]byte(output))
-	l.output.Write([]byte("\n"))
+	l.output.Write(formatted)
+}
+
+// getFormatter returns the current formatter with read lock
+func (l *LoggerImpl) getFormatter() Formatter {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+	return l.formatter
 }
