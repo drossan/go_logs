@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -39,6 +40,27 @@ var (
 	logFileOnce sync.Once
 	logFileMu   sync.Mutex
 )
+
+// Numeric log levels (syslog-style)
+// These constants define the numeric values for each log level,
+// allowing threshold-based logging similar to standard loggers.
+const (
+	LevelTrace  = 10  // Trace: Extremely detailed, high-volume information
+	LevelDebug  = 20  // Debug: Detailed diagnostic information for troubleshooting
+	LevelInfo   = 30  // Info: General operational messages
+	LevelWarn   = 40  // Warning: Potential issues or non-critical situations
+	LevelError  = 50  // Error: Operational errors that need attention
+	LevelFatal  = 60  // Fatal: Application crashes or critical errors
+	LevelSilent = 0   // Silent: Disables all logging
+)
+
+// logLevel stores the configured logging threshold
+// Messages with level >= logLevel will be logged
+var logLevel int // Default: 0 (disabled if not set)
+
+// useLegacySystem tracks whether the old notification system is configured
+// If true, legacy system takes precedence over LOG_LEVEL for backward compatibility
+var useLegacySystem bool
 
 // Init initializes the go_logs package with configuration from environment variables.
 //
@@ -98,6 +120,59 @@ func Init() {
 	if notificationsEnabled {
 		loadSlackConfig()
 	}
+
+	loadLogLevel()
+}
+
+// getNumericLevel converts a log level string to its numeric value
+// Supports both lowercase and uppercase level names
+func getNumericLevel(level string) int {
+	switch level {
+	case "FATAL":
+		return LevelFatal
+	case "ERROR":
+		return LevelError
+	case "WARNING", "WARN":
+		return LevelWarn
+	case "INFO":
+		return LevelInfo
+	case "DEBUG":
+		return LevelDebug
+	case "TRACE":
+		return LevelTrace
+	default:
+		return LevelSilent
+	}
+}
+
+// loadLogLevel loads the LOG_LEVEL environment variable and sets the logging threshold
+// Supports: trace, debug, info, warn, error, fatal, silent (case-insensitive)
+func loadLogLevel() {
+	levelStr := os.Getenv("LOG_LEVEL")
+	if levelStr == "" {
+		return // Not configured, will use old system
+	}
+
+	levelStr = strings.ToLower(levelStr)
+	switch levelStr {
+	case "trace":
+		logLevel = LevelTrace
+	case "debug":
+		logLevel = LevelDebug
+	case "info":
+		logLevel = LevelInfo
+	case "warn", "warning":
+		logLevel = LevelWarn
+	case "error":
+		logLevel = LevelError
+	case "fatal":
+		logLevel = LevelFatal
+	case "silent", "none", "disable":
+		logLevel = LevelSilent
+	default:
+		log.Printf("Warning: Unknown LOG_LEVEL '%s', using info (30)", levelStr)
+		logLevel = LevelInfo
+	}
 }
 
 func loadNotificationsConfig() {
@@ -128,6 +203,11 @@ func loadNotificationsConfig() {
 		log.Fatalf("Error parsing NOTIFICATION_SUCCESS_LOG: %v", err)
 	}
 
+	// Detect if legacy system is configured (any notification level explicitly enabled)
+	// This ensures backward compatibility by taking precedence over LOG_LEVEL
+	useLegacySystem = notificationLogFatal || notificationLogError ||
+		notificationLogWarning || notificationLogInfo || notificationLogSuccess
+
 	// Issue #1 Fix: Protect map write with mutex
 	notificationSettingsMutex.Lock()
 	notificationSettings = map[string]bool{
@@ -141,6 +221,12 @@ func loadNotificationsConfig() {
 }
 
 // getNotificationSettings returns whether notifications are enabled for a given log level
+//
+// This function implements a dual-system approach for backward compatibility:
+// 1. Legacy system: If any NOTIFICATION_*_LOG variable is set, use the boolean map
+// 2. New system: If LOG_LEVEL is set, use numeric threshold comparison
+// 3. Legacy takes precedence when both are configured
+//
 // Thread-safe getter for notificationSettings with nil-check (Issue #2)
 func getNotificationSettings(level string) bool {
 	notificationSettingsMutex.RLock()
@@ -151,7 +237,20 @@ func getNotificationSettings(level string) bool {
 		return false
 	}
 
-	return notificationSettings[level]
+	// Legacy system takes precedence for backward compatibility
+	if useLegacySystem {
+		return notificationSettings[level]
+	}
+
+	// New system: Use numeric log level threshold
+	// Log if message level >= configured level (syslog-style)
+	if logLevel > 0 {
+		messageLevel := getNumericLevel(level)
+		return messageLevel >= logLevel
+	}
+
+	// No system configured, default to false
+	return false
 }
 
 func loadSlackConfig() {
