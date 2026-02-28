@@ -208,7 +208,9 @@ func TestLogFilePathConstruction(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Setup
+			// Setup: Reset persistent file state before each test
+			Close() // Close any previously opened file
+
 			logFilePath = tt.logFilePath
 			logFileName = tt.logFileName
 
@@ -221,10 +223,8 @@ func TestLogFilePathConstruction(t *testing.T) {
 				return
 			}
 
-			// Verify file exists and can be closed
-			if err := file.Close(); err != nil {
-				t.Errorf("Failed to close file: %v", err)
-			}
+			// Clean up: use Close() instead of file.Close() for persistent file
+			Close()
 		})
 	}
 }
