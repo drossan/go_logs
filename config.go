@@ -105,10 +105,16 @@ func loadNotificationsConfig() {
 }
 
 // getNotificationSettings returns whether notifications are enabled for a given log level
-// Thread-safe getter for notificationSettings
+// Thread-safe getter for notificationSettings with nil-check (Issue #2)
 func getNotificationSettings(level string) bool {
 	notificationSettingsMutex.RLock()
 	defer notificationSettingsMutex.RUnlock()
+
+	// Issue #2 Fix: Return false if map is not yet initialized
+	if notificationSettings == nil {
+		return false
+	}
+
 	return notificationSettings[level]
 }
 
