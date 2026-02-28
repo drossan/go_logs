@@ -188,3 +188,45 @@ type CallerSkipOption struct {
 func WithCallerSkip(skip int) Option {
 	return &CallerSkipOption{Skip: skip}
 }
+
+// MultiOutputOption is the actual implementation for WithMultiOutput option
+type MultiOutputOption struct {
+	Writers []io.Writer
+}
+
+// WithMultiOutput enables output to multiple writers simultaneously.
+// This is useful for logging to both file and console.
+//
+// Example:
+//
+//	file, _ := go_logs.NewRotatingFileWriter("app.log", 100, 5)
+//	logger, _ := go_logs.New(
+//	    go_logs.WithMultiOutput(file, os.Stdout),
+//	)
+func WithMultiOutput(writers ...io.Writer) Option {
+	return &MultiOutputOption{Writers: writers}
+}
+
+// RotatingFileEnhancedOption is the actual implementation for WithRotatingFileEnhanced option
+type RotatingFileEnhancedOption struct {
+	Config RotatingFileConfig
+}
+
+// WithRotatingFileEnhanced creates a rotating file writer with full configuration.
+// This supports time-based rotation and compression.
+//
+// Example:
+//
+//	logger, _ := go_logs.New(
+//	    go_logs.WithRotatingFileEnhanced(go_logs.RotatingFileConfig{
+//	        Filename:     "/var/log/app.log",
+//	        MaxSizeMB:    100,
+//	        MaxBackups:   5,
+//	        RotationType: go_logs.RotateDaily,
+//	        Compress:     true,
+//	        MaxAge:       30, // Keep 30 days
+//	    }),
+//	)
+func WithRotatingFileEnhanced(config RotatingFileConfig) Option {
+	return &RotatingFileEnhancedOption{Config: config}
+}
