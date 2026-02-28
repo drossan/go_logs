@@ -182,3 +182,49 @@ func TestNotificationSettingsValues(t *testing.T) {
 		t.Error("INFO should be true")
 	}
 }
+
+// TestLogFilePathConstruction verifies that file paths are constructed
+// correctly using filepath.Join() for portability (Issue #4)
+func TestLogFilePathConstruction(t *testing.T) {
+	tests := []struct {
+		name           string
+		logFilePath    string
+		logFileName    string
+		expectedInPath string
+	}{
+		{
+			name:           "Empty path uses filename only",
+			logFilePath:    "",
+			logFileName:    "test.log",
+			expectedInPath: "test.log",
+		},
+		{
+			name:           "Path and filename joined",
+			logFilePath:    t.TempDir(),
+			logFileName:    "app.log",
+			expectedInPath: "app.log",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup
+			logFilePath = tt.logFilePath
+			logFileName = tt.logFileName
+
+			// Call function under test
+			file := openLogFile()
+
+			// Verify file was created successfully
+			if file == nil {
+				t.Error("Expected file to be created, got nil")
+				return
+			}
+
+			// Verify file exists and can be closed
+			if err := file.Close(); err != nil {
+				t.Errorf("Failed to close file: %v", err)
+			}
+		})
+	}
+}

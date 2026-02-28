@@ -4,6 +4,7 @@ import (
 	"github.com/drossan/go_logs/adapters"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"sync"
 )
@@ -116,7 +117,16 @@ func loadSlackConfig() {
 }
 
 func openLogFile() *os.File {
-	file, err := os.OpenFile(logFilePath+"/"+logFileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	// Issue #4 Fix: Use filepath.Join() for portable path construction
+	// Handle empty logFilePath gracefully
+	var fullPath string
+	if logFilePath == "" {
+		fullPath = logFileName
+	} else {
+		fullPath = filepath.Join(logFilePath, logFileName)
+	}
+
+	file, err := os.OpenFile(fullPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		log.Fatalf("Error opening log file: %v", err)
 	}
