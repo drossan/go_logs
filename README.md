@@ -261,6 +261,39 @@ LOG_MAX_SIZE=100      # MB antes de rotar
 LOG_MAX_BACKUPS=5     # Archivos backup a mantener
 ```
 
+### Rotación por Tiempo (Daily/Hourly)
+
+```go
+// Rotación diaria con compresión
+logger, _ := go_logs.New(
+    go_logs.WithRotatingFileEnhanced(go_logs.RotatingFileConfig{
+        Filename:     "/var/log/app.log",
+        MaxSizeMB:    100,
+        MaxBackups:   30,           // Mantener 30 días
+        RotationType: go_logs.RotateDaily,
+        Compress:     true,         // Gzip archivos antiguos
+        MaxAge:       30,           // Eliminar después de 30 días
+    }),
+)
+```
+
+Tipos de rotación:
+- `RotateSize`: Por tamaño (default)
+- `RotateDaily`: Cada día a medianoche
+- `RotateHourly`: Cada hora
+
+### Múltiples Outputs (File + Console)
+
+```go
+file, _ := go_logs.NewRotatingFileWriter("app.log", 100, 5)
+multi := go_logs.NewMultiWriter(file, os.Stdout)
+
+logger, _ := go_logs.New(
+    go_logs.WithOutput(multi),
+)
+// Logs van a archivo Y consola simultáneamente
+```
+
 ## Redactor de Datos Sensibles
 
 Enmascara automáticamente campos sensibles:
@@ -482,7 +515,15 @@ GO111MODULE=on go tool cover -html=coverage.out
 
 ## Changelog
 
-### v3.1 (Actual)
+### v3.2 (Actual)
+
+- MultiWriter: Salida simultánea a múltiples destinos
+- Rotación por tiempo: Daily (diario) y Hourly (horario)
+- Compresión gzip: Archivos rotados comprimidos automáticamente
+- MaxAge: Limpieza automática de archivos antiguos
+- EnhancedRotatingFileWriter con configuración completa
+
+### v3.1
 
 - Caller Info: archivo, línea y función en cada log
 - Stack Traces: captura automática en Error+
