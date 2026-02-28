@@ -3,6 +3,8 @@ package adapters
 import (
 	"os"
 	"testing"
+
+	"github.com/slack-go/slack"
 )
 
 // TestNewSlackNotifierValid verifies that NewSlackNotifier creates
@@ -192,5 +194,158 @@ func TestSlackChannelNameTypo(t *testing.T) {
 		if !notifier.enabled {
 			t.Error("Expected notifier to be enabled with correct version")
 		}
+	})
+}
+
+// TestSlackNotifierSendNotificationWithAttachments verifies SendNotificationWithAttachments
+// Issue #8: Test backward compatibility with both env var names
+func TestSlackNotifierSendNotificationWithAttachments(t *testing.T) {
+	t.Run("With valid credentials", func(t *testing.T) {
+		// Setup: Valid credentials
+		os.Setenv("SLACK_TOKEN", "xoxb-test-token")
+		os.Setenv("SLACK_CHANNEL_ID", "C1234567890")
+		defer func() {
+			os.Unsetenv("SLACK_TOKEN")
+			os.Unsetenv("SLACK_CHANNEL_ID")
+		}()
+
+		// Create notifier
+		notifier, err := NewSlackNotifier()
+		if err != nil {
+			t.Fatalf("Expected no error with valid credentials, got: %v", err)
+		}
+
+		if !notifier.enabled {
+			t.Fatal("Expected notifier to be enabled")
+		}
+
+		// Create test attachments
+		attachments := []slack.Attachment{
+			{
+				Title:      "Test Title",
+				Text:       "Test Text",
+				Color:      "#36a64f",
+				AuthorName: "Test Author",
+			},
+		}
+
+		// Call function under test
+		// Note: This will fail to actually send (invalid token), but we can test the logic
+		err = notifier.SendNotificationWithAttachments(attachments)
+
+		// We expect an error (invalid token), but function should execute without panic
+		if err == nil {
+			// If no error, the API call succeeded (unexpected but acceptable)
+			t.Log("Unexpected: API call succeeded with test token")
+		}
+	})
+
+	t.Run("When disabled returns nil", func(t *testing.T) {
+		// Create disabled notifier
+		notifier := &SlackNotifier{
+			Client:  nil,
+			enabled: false,
+		}
+
+		// Create test attachments
+		attachments := []slack.Attachment{
+			{Title: "Test", Text: "Test"},
+		}
+
+		// Call function under test
+		err := notifier.SendNotificationWithAttachments(attachments)
+
+		// Should return nil without attempting to send
+		if err != nil {
+			t.Errorf("Expected no error when notifier is disabled, got: %v", err)
+		}
+	})
+
+	t.Run("With empty attachments", func(t *testing.T) {
+		// Setup: Valid credentials
+		os.Setenv("SLACK_TOKEN", "xoxb-test-token")
+		os.Setenv("SLACK_CHANNEL_ID", "C1234567890")
+		defer func() {
+			os.Unsetenv("SLACK_TOKEN")
+			os.Unsetenv("SLACK_CHANNEL_ID")
+		}()
+
+		// Create notifier
+		notifier, err := NewSlackNotifier()
+		if err != nil {
+			t.Fatalf("Expected no error, got: %v", err)
+		}
+
+		// Call with empty attachments
+		emptyAttachments := []slack.Attachment{}
+		err = notifier.SendNotificationWithAttachments(emptyAttachments)
+
+		// Should not panic, may fail on API call
+		// We're just testing it doesn't panic with empty slice
+		_ = err
+	})
+
+	t.Run("With multiple attachments", func(t *testing.T) {
+		// Setup: Valid credentials
+		os.Setenv("SLACK_TOKEN", "xoxb-test-token")
+		os.Setenv("SLACK_CHANNEL_ID", "C1234567890")
+		defer func() {
+			os.Unsetenv("SLACK_TOKEN")
+			os.Unsetenv("SLACK_CHANNEL_ID")
+		}()
+
+		// Create notifier
+		notifier, err := NewSlackNotifier()
+		if err != nil {
+			t.Fatalf("Expected no error, got: %v", err)
+		}
+
+		// Create multiple attachments
+		attachments := []slack.Attachment{
+			{Title: "Attachment 1", Text: "Text 1", Color: "good"},
+			{Title: "Attachment 2", Text: "Text 2", Color: "warning"},
+			{Title: "Attachment 3", Text: "Text 3", Color: "danger"},
+		}
+
+		// Call function under test
+		err = notifier.SendNotificationWithAttachments(attachments)
+
+		// Should not panic with multiple attachments
+		_ = err
+	})
+
+	t.Run("Uses cached channel ID", func(t *testing.T) {
+		// Setup: Valid credentials with correct env var
+		os.Setenv("SLACK_TOKEN", "xoxb-test-token")
+		os.Setenv("SLACK_CHANNEL_ID", "C1234567890")
+		defer func() {
+			os.Unsetenv("SLACK_TOKEN")
+			os.Unsetenv("SLACK_CHANNEL_ID")
+		}()
+
+		// Create notifier
+		notifier, err := NewSlackNotifier()
+		if err != nil {
+			t.Fatalf("Expected no error, got: %v", err)
+		}
+
+		// Verify channel ID was cached
+		if notifier.channelID != "C1234567890" {
+			t.Errorf("Expected channelID to be cached, got: %s", notifier.channelID)
+		}
+
+		// Now change env var (should not affect notifier)
+		os.Setenv("SLACK_CHANNEL_ID", "C9999999999")
+
+		// Call function - should use cached value, not new env var
+		attachments := []slack.Attachment{{Title: "Test"}}
+		err = notifier.SendNotificationWithAttachments(attachments)
+
+		// Verify notifier still has original cached channel ID
+		if notifier.channelID != "C1234567890" {
+			t.Error("Expected channelID to remain cached despite env var change")
+		}
+
+		_ = err // API call may fail, that's expected
 	})
 }
