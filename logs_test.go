@@ -9,6 +9,9 @@ import (
 
 // TestInfoLog verifies InfoLog writes to both console and file
 func TestInfoLog(t *testing.T) {
+	// Reset state from any previous test
+	Close()
+
 	// Setup: Redirect log output to capture console output
 	var buf bytes.Buffer
 	log.SetOutput(&buf)
@@ -28,6 +31,7 @@ func TestInfoLog(t *testing.T) {
 	notificationSettings = map[string]bool{
 		"INFO": true, // Enable INFO logging
 	}
+	useLegacySystem = true // Enable legacy system for file logging
 	notificationSettingsMutex.Unlock()
 
 	// Call function under test
@@ -61,6 +65,9 @@ func TestInfoLog(t *testing.T) {
 
 // TestSuccessLog verifies SuccessLog writes to both console and file
 func TestSuccessLog(t *testing.T) {
+	// Reset state from any previous test
+	Close()
+
 	// Setup: Redirect log output
 	var buf bytes.Buffer
 	log.SetOutput(&buf)
@@ -80,6 +87,7 @@ func TestSuccessLog(t *testing.T) {
 	notificationSettings = map[string]bool{
 		"SUCCESS": true, // Enable SUCCESS logging
 	}
+	useLegacySystem = true // Enable legacy system for file logging
 	notificationSettingsMutex.Unlock()
 
 	// Call function under test

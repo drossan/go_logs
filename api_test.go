@@ -123,6 +123,9 @@ func TestSuccessf(t *testing.T) {
 // TestWarningLog verifies WarningLog function works
 // Issue #14: Previously notificationLogWarning was loaded but never used
 func TestWarningLog(t *testing.T) {
+	// Reset state from any previous test
+	Close()
+
 	// Setup: Redirect log output
 	var buf bytes.Buffer
 	log.SetOutput(&buf)
@@ -142,6 +145,7 @@ func TestWarningLog(t *testing.T) {
 	notificationSettings = map[string]bool{
 		"WARNING": true, // Enable WARNING logging
 	}
+	useLegacySystem = true // Enable legacy system for file logging
 	notificationSettingsMutex.Unlock()
 
 	// Call function under test
