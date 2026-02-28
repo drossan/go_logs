@@ -44,6 +44,26 @@ func (l Level) shouldLog(threshold Level) bool {
 	return l >= threshold
 }
 
+// ShouldLog returns true if this level should be logged given the threshold.
+// This is the public version of shouldLog for use in hooks and other external code.
+//
+// Syslog-style filtering: log if message level >= threshold level.
+//
+// Parameters:
+//   threshold - The minimum level threshold
+//
+// Returns:
+//   true if this level meets or exceeds the threshold, false otherwise
+//
+// Example:
+//
+//	if entry.Level.ShouldLog(ErrorLevel) {
+//	    // Send to monitoring system
+//	}
+func (l Level) ShouldLog(threshold Level) bool {
+	return l.shouldLog(threshold)
+}
+
 // String returns the string representation of the log level.
 // Returns "UNKNOWN" for undefined levels.
 func (l Level) String() string {
