@@ -243,6 +243,54 @@ logger := go_logs.New(
 )
 ```
 
+### OpenTelemetry / OTLP Hook
+
+Envía logs a un collector OpenTelemetry:
+
+```go
+import "github.com/drossan/go_logs/otel"
+
+// Hook simple
+otelHook := otel.NewOTLPHook("http://localhost:4318/v1/logs")
+defer otelHook.Close()
+
+logger := go_logs.New(
+    go_logs.WithHook(otelHook),
+)
+
+// Con configuración avanzada
+exporter := otel.NewOTLPExporterWithConfig(otel.OTLPConfig{
+    Endpoint:      "http://otel-collector:4318/v1/logs",
+    Headers:       map[string]string{"Authorization": "Bearer token"},
+    MaxPending:    100,
+    FlushInterval: 5 * time.Second,
+    Timeout:       30 * time.Second,
+})
+hook := otel.NewOTLPHookWithExporter(exporter, go_logs.InfoLevel)
+```
+
+### Syslog Hook
+
+Envía logs al syslog local o remoto:
+
+```go
+import "github.com/drossan/go_logs/hooks"
+
+// Syslog local
+syslogHook, _ := hooks.NewSyslogHook("myapp")
+defer syslogHook.Close()
+
+// Syslog remoto (RFC5424)
+remoteHook, _ := hooks.NewNetworkSyslogHook("tcp", "logs.example.com:514", "myapp")
+
+// Con formateador RFC5424
+syslogHook.SetFormatter(hooks.RFC5424Formatter("myapp"))
+
+logger := go_logs.New(
+    go_logs.WithHook(syslogHook),
+)
+```
+
 ## Rotating File Writer
 
 Rotación por tamaño sin dependencias externas:
@@ -463,6 +511,108 @@ go_logs.SuccessLogCtx(ctx context.Context, message string)
 | JSONFormatter | 249.3 ns/op | < 1 µs |
 | RotatingFileWriter | 16M msg/sec | - |
 
+## Sampling / Rate Limiting
+
+Controla el volumen de logs en sistemas de alta carga:
+
+```go
+// Permitir máximo 100 logs por minuto
+sampler := go_logs.NewSampler(100, time.Minute)
+
+if sampler.Allow() {
+    logger.Info("high frequency event")
+}
+
+// SamplingWriter para envolver cualquier writer
+buf := go_logs.NewCaptureBuffer()
+sw := go_logs.NewSamplingWriter(buf, 100, time.Minute)
+
+// Con callback para monitorear drops
+sw := go_logs.NewSamplingWriterWithCallback(w, 100, time.Minute, func(dropped int) {
+    metrics.LogsDropped.Add(dropped)
+})
+```
+
+## Global Logger
+
+Acceso global sin pasar logger por parámetros:
+
+```go
+// Configurar logger global
+logger, _ := go_logs.New(go_logs.WithLevel(go_logs.InfoLevel))
+go_logs.SetDefault(logger)
+
+// Usar desde cualquier parte del código
+go_logs.GlobalInfo("application started")
+go_logs.GlobalError("something failed", go_logs.Err(err))
+go_logs.GlobalWarn("deprecated feature used")
+
+// También con nivel dinámico
+go_logs.SetDefaultLevel(go_logs.DebugLevel) // Cambiar nivel globalmente
+```
+
+## Testing Utilities
+
+Herramientas para tests con logs:
+
+### CaptureBuffer
+
+Captura output de logs en tests:
+
+```go
+func TestMyFeature(t *testing.T) {
+    buf := go_logs.NewCaptureBuffer()
+    logger, _ := go_logs.New(go_logs.WithOutput(buf))
+
+    logger.Info("test message")
+
+    // Verificar contenido
+    if !buf.Contains("test message") {
+        t.Error("expected log message")
+    }
+
+    // Verificar múltiples substrings
+    if !buf.ContainsAll("test", "message") {
+        t.Error("expected both substrings")
+    }
+
+    // Obtener líneas
+    lines := buf.Lines()
+    lastLine := buf.LastLine()
+}
+```
+
+### MockLogger
+
+Mock completo para tests unitarios:
+
+```go
+func TestBusinessLogic(t *testing.T) {
+    mock := go_logs.NewMockLogger()
+    mock.SetLevel(go_logs.DebugLevel) // Capturar todos los niveles
+
+    // Usar mock en lugar del logger real
+    processOrder(mock, order)
+
+    // Verificar logs generados
+    if mock.Count() != 2 {
+        t.Errorf("expected 2 logs, got %d", mock.Count())
+    }
+
+    if !mock.HasMessage("order processed") {
+        t.Error("expected 'order processed' log")
+    }
+
+    if !mock.HasLevel(go_logs.ErrorLevel) {
+        t.Error("expected an error log")
+    }
+
+    // Obtener última entrada
+    last := mock.LastEntry()
+    // Verificar campos
+}
+```
+
 ## Migración v2 → v3
 
 Ver [MIGRATION.md](MIGRATION.md) para guía completa.
@@ -515,7 +665,21 @@ GO111MODULE=on go tool cover -html=coverage.out
 
 ## Changelog
 
-### v3.2 (Actual)
+### v3.4 (Actual)
+
+- OpenTelemetry/OTLP: Envío de logs a collectors OpenTelemetry
+- Syslog Hook: Integración con syslog local y remoto (RFC5424)
+- OTLPExporter con buffering y flush automático
+- NetworkSyslogHook para servidores remotos
+
+### v3.3
+
+- Sampling/Rate Limiting: Control de volumen de logs
+- Global Logger: Acceso global con SetDefault() y Global*()
+- Testing Utils: CaptureBuffer y MockLogger para tests
+- SamplingWriter con callbacks de drop
+
+### v3.2
 
 - MultiWriter: Salida simultánea a múltiples destinos
 - Rotación por tiempo: Daily (diario) y Hourly (horario)
