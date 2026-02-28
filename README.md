@@ -39,7 +39,10 @@ SAVE_LOG_FILE=1                    # Habilitar logging a archivo (0 o 1)
 LOG_FILE_NAME=app.log              # Nombre del archivo (default: log.txt)
 LOG_FILE_PATH=/var/log/app         # Directorio para logs (default: actual)
 
-# Notificaciones por Nivel
+# Sistema de Nivel de Log (Nuevo - Estilo Syslog)
+LOG_LEVEL=info                     # Nivel de log: trace, debug, info, warn, error, fatal, silent
+
+# Notificaciones por Nivel (Sistema Legacy - Mantiene compatibilidad)
 NOTIFICATION_FATAL_LOG=1           # Enviar fatal logs a Slack (0 o 1)
 NOTIFICATION_ERROR_LOG=1           # Enviar error logs a Slack (0 o 1)
 NOTIFICATION_WARNING_LOG=1         # Enviar warning logs a Slack (0 o 1)
@@ -59,6 +62,7 @@ SLACK_CHANNEL_ID=C1234567890       # ID del canal de Slack
 | `SAVE_LOG_FILE` | Habilitar logging a archivo | 0 |
 | `LOG_FILE_NAME` | Nombre del archivo de log | log.txt |
 | `LOG_FILE_PATH` | Directorio para logs | Directorio actual |
+| `LOG_LEVEL` | **Nivel de log (syslog-style)** | - |
 | `NOTIFICATION_FATAL_LOG` | Notificar fatal a Slack | 0 |
 | `NOTIFICATION_ERROR_LOG` | Notificar errors a Slack | 0 |
 | `NOTIFICATION_WARNING_LOG` | Notificar warnings a Slack | 0 |
@@ -67,6 +71,42 @@ SLACK_CHANNEL_ID=C1234567890       # ID del canal de Slack
 | `NOTIFICATIONS_SLACK_ENABLED` | Habilitar Slack | 0 |
 | `SLACK_TOKEN` | Token de Slack | - |
 | `SLACK_CHANNEL_ID` | ID del canal | - |
+
+#### Sistema de Nivel de Log (LOG_LEVEL)
+
+El sistema `LOG_LEVEL` usa umbrales numéricos estilo syslog. Los mensajes con nivel >= configurado serán notificados:
+
+| Nivel | Valor | Descripción |
+|-------|-------|-------------|
+| `trace` | 10 | Información extremadamente detallada (high-volume) |
+| `debug` | 20 | Información detallada para troubleshooting |
+| `info` | 30 | Mensajes operacionales generales |
+| `warn` | 40 | Situaciones potenciales o no críticas |
+| `error` | 50 | Errores operacionales que requieren atención |
+| `fatal` | 60 | Errores críticos que terminan la aplicación |
+| `silent` | 0 | Deshabilita todas las notificaciones |
+
+**Ejemplos de uso:**
+
+```bash
+# Notificar info y superiores (info, warn, error, fatal)
+LOG_LEVEL=info
+
+# Notificar solo errores y fatales
+LOG_LEVEL=error
+
+# Notificar todo (incluso trace)
+LOG_LEVEL=trace
+
+# Deshabilitar notificaciones
+LOG_LEVEL=silent
+```
+
+#### Compatibilidad Retroactiva
+
+**Importante:** Si configuras las variables `NOTIFICATION_*_LOG` (sistema legacy), este tendrá **precedencia** sobre `LOG_LEVEL`. Ambos sistemas pueden coexistir, pero el sistema legacy se usa primero si está configurado.
+
+**Recomendación:** Para nuevos proyectos, usa `LOG_LEVEL`. Para proyectos existentes, puedes migrar gradualmente.
 
 ## Uso Básico
 
