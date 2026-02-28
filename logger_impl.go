@@ -237,11 +237,11 @@ func (l *LoggerImpl) combineFields(fields []Field) []Field {
 	return combined
 }
 
-// extractContextFields extracts fields from context (Phase 3 placeholder)
+// extractContextFields extracts fields from context for logging
 func (l *LoggerImpl) extractContextFields(ctx context.Context) []Field {
-	// Phase 3: Extract trace_id, span_id, request_id from context
-	// For now, return empty slice
-	return []Field{}
+	// Extract trace_id, span_id, request_id, user_id from context
+	// These fields are automatically included in all LogCtx calls
+	return ExtractFieldsFromContext(ctx)
 }
 
 // writeEntry formats and writes the log entry using the configured formatter
