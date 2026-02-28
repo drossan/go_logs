@@ -19,7 +19,7 @@ func TestLogFilePermissions(t *testing.T) {
 	if file == nil {
 		t.Fatal("Expected file to be created, got nil")
 	}
-	defer file.Close()
+	defer Close() // Use Close() instead of file.Close() for persistent file
 	defer os.Remove(logFilePath + "/" + logFileName)
 
 	// Get file info to check permissions
@@ -52,7 +52,7 @@ func TestLogFilePermissionsWithConfig(t *testing.T) {
 		if file == nil {
 			t.Fatal("Expected file to be created")
 		}
-		defer file.Close()
+		defer Close() // Use Close() instead of file.Close()
 
 		info, _ := file.Stat()
 		mode := info.Mode().Perm()

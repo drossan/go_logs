@@ -1,6 +1,7 @@
 package go_logs
 
 import (
+	"bufio"
 	"github.com/drossan/go_logs/adapters"
 	"log"
 	"os"
@@ -30,6 +31,14 @@ var (
 )
 
 var notifier *adapters.SlackNotifier
+
+// Issue #9 Fix: Persistent file with buffering for performance
+var (
+	logFile     *os.File
+	logWriter   *bufio.Writer
+	logFileOnce sync.Once
+	logFileMu   sync.Mutex
+)
 
 func Init() {
 	var err error // Issue #3 Fix: Local error variable instead of global
@@ -128,7 +137,8 @@ func loadSlackConfig() {
 	}
 }
 
-func openLogFile() *os.File {
+// Issue #9 Fix: Initialize persistent log file with buffering (called once via sync.Once)
+func initPersistentLogFile() {
 	// Issue #4 Fix: Use filepath.Join() for portable path construction
 	// Handle empty logFilePath gracefully
 	var fullPath string
@@ -140,16 +150,63 @@ func openLogFile() *os.File {
 
 	// Issue #6 Fix: Use 0600 permissions (owner read/write only) instead of 0666 (world readable)
 	// Logs may contain sensitive information, so they should not be world-readable
-	file, err := os.OpenFile(fullPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+	var err error
+	logFile, err = os.OpenFile(fullPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
 		log.Fatalf("Error opening log file: %v", err)
 	}
-	return file
+
+	// Create buffered writer for performance (Issue #9)
+	logWriter = bufio.NewWriter(logFile)
 }
 
+// openLogFile initializes the persistent log file (called once via sync.Once)
+// Issue #9: Changed from open/close per write to persistent file with buffering
+func openLogFile() *os.File {
+	logFileOnce.Do(initPersistentLogFile)
+	return logFile
+}
+
+// getLogWriter returns the buffered writer for the log file
+// Issue #9: New function to provide buffered writer for efficient writes
+func getLogWriter() *bufio.Writer {
+	logFileOnce.Do(initPersistentLogFile)
+	return logWriter
+}
+
+// closeLogFile flushes and closes the persistent log file
+// Issue #9: Changed to close the persistent file instead of per-operation file
+// Made idempotent to handle multiple calls safely
 func closeLogFile(file *os.File) {
-	err := file.Close()
-	if err != nil {
-		log.Fatalf("Error closing the log file: %v", err)
+	logFileMu.Lock()
+	defer logFileMu.Unlock()
+
+	// Idempotent: safe to call multiple times
+	if logWriter != nil {
+		err := logWriter.Flush()
+		if err != nil {
+			log.Printf("Error flushing log writer: %v", err)
+		}
+		logWriter = nil
 	}
+
+	if logFile != nil {
+		err := logFile.Close()
+		// Idempotent: don't fail on "already closed" errors
+		if err != nil && !os.IsNotExist(err) {
+			// Use log.Printf instead of log.Fatalf to avoid terminating tests
+			// Errors closing are logged but not fatal
+			log.Printf("Error closing log file (may already be closed): %v", err)
+		}
+		logFile = nil
+	}
+
+	// Reset sync.Once to allow re-initialization if needed
+	logFileOnce = sync.Once{}
+}
+
+// Close is the public API to close the log file cleanly
+// Issue #9: New public function for explicit cleanup
+func Close() {
+	closeLogFile(nil)
 }
