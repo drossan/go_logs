@@ -70,7 +70,8 @@ func (s *SlackNotifier) SendNotification(message string) error {
 		log.Printf("Failed to send notification to Slack: %v", err)
 		return err
 	}
-	log.Printf("Notification sent to Slack channel %s", s.channelID)
+	// Issue #15: Clarified log message (removed reference to typo env var name)
+	log.Printf("Notification sent to Slack via channel %s", s.channelID)
 	return nil
 }
 
