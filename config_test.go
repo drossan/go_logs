@@ -228,3 +228,114 @@ func TestLogFilePathConstruction(t *testing.T) {
 		})
 	}
 }
+
+// TestLoadSlackConfig verifies loadSlackConfig initializes Slack notifier
+// Issue #7: Tests credential validation and graceful degradation
+func TestLoadSlackConfig(t *testing.T) {
+	t.Run("Valid credentials initializes notifier", func(t *testing.T) {
+		// Setup: Valid Slack credentials
+		os.Setenv("SLACK_TOKEN", "xoxb-test-token")
+		os.Setenv("SLACK_CHANNEL_ID", "C1234567890")
+		defer func() {
+			os.Unsetenv("SLACK_TOKEN")
+			os.Unsetenv("SLACK_CHANNEL_ID")
+		}()
+
+		// Call function under test
+		loadSlackConfig()
+
+		// Verify notifier was initialized
+		if notifier == nil {
+			t.Error("Expected notifier to be initialized with valid credentials")
+		}
+
+		if !IsNotifierEnabled() {
+			t.Error("Expected notifier to be enabled with valid credentials")
+		}
+	})
+
+	t.Run("Missing token disables notifier gracefully", func(t *testing.T) {
+		// Setup: Missing token (only channel)
+		os.Unsetenv("SLACK_TOKEN")
+		os.Setenv("SLACK_CHANNEL_ID", "C1234567890")
+		defer func() {
+			os.Unsetenv("SLACK_CHANNEL_ID")
+		}()
+
+		// Call function under test
+		loadSlackConfig()
+
+		// Verify notifier exists but is disabled
+		if notifier == nil {
+			t.Error("Expected notifier to be created (but disabled)")
+		}
+
+		if IsNotifierEnabled() {
+			t.Error("Expected notifier to be disabled when token is missing")
+		}
+	})
+
+	t.Run("Missing channel disables notifier gracefully", func(t *testing.T) {
+		// Setup: Missing channel (only token)
+		os.Setenv("SLACK_TOKEN", "xoxb-test-token")
+		os.Unsetenv("SLACK_CHANNEL_ID")
+		defer func() {
+			os.Unsetenv("SLACK_TOKEN")
+		}()
+
+		// Call function under test
+		loadSlackConfig()
+
+		// Verify notifier exists but is disabled
+		if notifier == nil {
+			t.Error("Expected notifier to be created (but disabled)")
+		}
+
+		if IsNotifierEnabled() {
+			t.Error("Expected notifier to be disabled when channel is missing")
+		}
+	})
+
+	t.Run("Both missing disables notifier", func(t *testing.T) {
+		// Setup: No credentials at all
+		os.Unsetenv("SLACK_TOKEN")
+		os.Unsetenv("SLACK_CHANNEL_ID")
+
+		// Call function under test
+		loadSlackConfig()
+
+		// Verify notifier exists but is disabled
+		if notifier == nil {
+			t.Error("Expected notifier to be created (but disabled)")
+		}
+
+		if IsNotifierEnabled() {
+			t.Error("Expected notifier to be disabled when both credentials are missing")
+		}
+	})
+}
+
+// TestLoadSlackConfigBackwardCompatibility verifies support for typo version
+// Issue #8: SLACK_CHANEL_ID (typo) should work with warning
+func TestLoadSlackConfigBackwardCompatibility(t *testing.T) {
+	// Setup: Use typo version only
+	os.Setenv("SLACK_TOKEN", "xoxb-test-token")
+	os.Setenv("SLACK_CHANEL_ID", "C1234567890") // Typo version
+	os.Unsetenv("SLACK_CHANNEL_ID")             // Ensure correct version is NOT set
+	defer func() {
+		os.Unsetenv("SLACK_TOKEN")
+		os.Unsetenv("SLACK_CHANEL_ID")
+	}()
+
+	// Call function under test
+	loadSlackConfig()
+
+	// Verify notifier is enabled (backward compatibility works)
+	if notifier == nil {
+		t.Fatal("Expected notifier to be created")
+	}
+
+	if !IsNotifierEnabled() {
+		t.Error("Expected notifier to be enabled with typo version (backward compatibility)")
+	}
+}

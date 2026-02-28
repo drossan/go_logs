@@ -210,3 +210,12 @@ func closeLogFile(file *os.File) {
 func Close() {
 	closeLogFile(nil)
 }
+
+// IsNotifierEnabled returns whether Slack notifications are enabled
+// Issue #7: Public accessor for testing (enabled field is private)
+func IsNotifierEnabled() bool {
+	if notifier == nil {
+		return false
+	}
+	return notifier.IsEnabled()
+}

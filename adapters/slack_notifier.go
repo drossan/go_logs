@@ -91,3 +91,9 @@ func (s *SlackNotifier) SendNotificationWithAttachments(attachments []slack.Atta
 	log.Printf("Notification with attachments sent to Slack channel %s", s.channelID)
 	return nil
 }
+
+// IsEnabled returns whether the notifier is enabled (for testing)
+// Issue #7: Public accessor for enabled field
+func (s *SlackNotifier) IsEnabled() bool {
+	return s.enabled
+}
