@@ -39,6 +39,18 @@ type LoggerImpl struct {
 
 	// flags control output formatting (will be used in Phase 2)
 	flags int
+
+	// enableCaller enables caller information (file:line function)
+	enableCaller bool
+
+	// callerSkip is the number of stack frames to skip
+	callerSkip int
+
+	// enableStackTrace enables stack trace capture
+	enableStackTrace bool
+
+	// stackTraceLevel is the minimum level for stack trace capture
+	stackTraceLevel Level
 }
 
 // NewLogger creates a new logger implementation with the given options.
@@ -46,12 +58,16 @@ type LoggerImpl struct {
 func NewLogger(opts ...Option) (Logger, error) {
 	// Create logger with defaults
 	l := &LoggerImpl{
-		level:     InfoLevel,
-		output:    os.Stdout,
-		formatter: loadLogFormat(), // Load from LOG_FORMAT env var
-		hooks:     []Hook{},
-		fields:    []Field{},
-		flags:     0,
+		level:            InfoLevel,
+		output:           os.Stdout,
+		formatter:        loadLogFormat(), // Load from LOG_FORMAT env var
+		hooks:            []Hook{},
+		fields:           []Field{},
+		flags:            0,
+		enableCaller:     false,
+		callerSkip:       2, // Default skip: GetCaller + Log
+		enableStackTrace: false,
+		stackTraceLevel:  ErrorLevel, // Default: capture stack for Error+
 	}
 
 	// Apply options
@@ -81,6 +97,22 @@ func NewLogger(opts ...Option) (Logger, error) {
 			l.mu.Lock()
 			l.flags = o.Flags
 			l.mu.Unlock()
+		case *CallerOption:
+			l.mu.Lock()
+			l.enableCaller = o.Enabled
+			l.mu.Unlock()
+		case *CallerSkipOption:
+			l.mu.Lock()
+			l.callerSkip = o.Skip
+			l.mu.Unlock()
+		case *StackTraceOption:
+			l.mu.Lock()
+			l.enableStackTrace = o.Enabled
+			l.mu.Unlock()
+		case *StackTraceLevelOption:
+			l.mu.Lock()
+			l.stackTraceLevel = o.Level
+			l.mu.Unlock()
 		}
 	}
 
@@ -101,6 +133,16 @@ func (l *LoggerImpl) Log(level Level, msg string, fields ...Field) {
 		Message:   msg,
 		Fields:    l.combineFields(fields),
 		Timestamp: time.Now(),
+	}
+
+	// Capture caller info if enabled
+	if l.enableCaller {
+		entry.Caller = GetCaller(l.callerSkip)
+	}
+
+	// Capture stack trace if enabled and level meets threshold
+	if l.enableStackTrace && level >= l.stackTraceLevel {
+		entry.StackTrace = GetStackTrace(l.callerSkip)
 	}
 
 	// Apply redactor if configured (Phase 6)
@@ -176,14 +218,18 @@ func (l *LoggerImpl) With(fields ...Field) Logger {
 	childFields := append(l.fields, fields...)
 
 	return &LoggerImpl{
-		level:     l.level,
-		output:    l.output,
-		formatter: l.formatter,
-		hooks:     l.hooks,
-		redactor:  l.redactor,
-		parent:    l,
-		fields:    childFields,
-		flags:     l.flags,
+		level:            l.level,
+		output:           l.output,
+		formatter:        l.formatter,
+		hooks:            l.hooks,
+		redactor:         l.redactor,
+		parent:           l,
+		fields:           childFields,
+		flags:            l.flags,
+		enableCaller:     l.enableCaller,
+		callerSkip:       l.callerSkip,
+		enableStackTrace: l.enableStackTrace,
+		stackTraceLevel:  l.stackTraceLevel,
 	}
 }
 

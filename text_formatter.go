@@ -103,6 +103,12 @@ func (f *TextFormatter) Format(entry *Entry) ([]byte, error) {
 		buf.WriteString(" ")
 	}
 
+	// Caller info (file:line function)
+	if entry.Caller != nil {
+		buf.WriteString(entry.Caller.String())
+		buf.WriteString(" ")
+	}
+
 	// Message
 	buf.WriteString(entry.Message)
 
@@ -110,6 +116,12 @@ func (f *TextFormatter) Format(entry *Entry) ([]byte, error) {
 	if len(entry.Fields) > 0 {
 		buf.WriteString(" ")
 		f.formatFields(&buf, entry.Fields)
+	}
+
+	// Stack trace (if present)
+	if len(entry.StackTrace) > 0 {
+		buf.WriteString("\n")
+		buf.WriteString(string(entry.StackTrace))
 	}
 
 	buf.WriteString("\n")

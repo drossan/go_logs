@@ -49,10 +49,13 @@ func NewJSONFormatterWithConfig(config FormatterConfig) *JSONFormatter {
 // JSONLogEntry represents the JSON structure of a log entry.
 // This is used internally by JSONFormatter for JSON marshaling.
 type JSONLogEntry struct {
-	Timestamp string                 `json:"timestamp,omitempty"`
-	Level     string                 `json:"level,omitempty"`
-	Message   string                 `json:"message"`
-	Fields    map[string]interface{} `json:"fields,omitempty"`
+	Timestamp  string                 `json:"timestamp,omitempty"`
+	Level      string                 `json:"level,omitempty"`
+	Message    string                 `json:"message"`
+	Fields     map[string]interface{} `json:"fields,omitempty"`
+	Caller     string                 `json:"caller,omitempty"`
+	CallerFunc string                 `json:"caller_func,omitempty"`
+	StackTrace string                 `json:"stack_trace,omitempty"`
 }
 
 // Format converts a log Entry to JSON bytes.
@@ -74,6 +77,12 @@ func (f *JSONFormatter) Format(entry *Entry) ([]byte, error) {
 		jsonEntry.Level = entry.Level.String()
 	}
 
+	// Add caller info if present
+	if entry.Caller != nil {
+		jsonEntry.Caller = entry.Caller.String()
+		jsonEntry.CallerFunc = entry.Caller.Func
+	}
+
 	// Add fields if any exist
 	if len(entry.Fields) > 0 {
 		jsonEntry.Fields = make(map[string]interface{}, len(entry.Fields))
@@ -90,6 +99,11 @@ func (f *JSONFormatter) Format(entry *Entry) ([]byte, error) {
 				jsonEntry.Fields[field.Key()] = field.Value()
 			}
 		}
+	}
+
+	// Add stack trace if present
+	if len(entry.StackTrace) > 0 {
+		jsonEntry.StackTrace = string(entry.StackTrace)
 	}
 
 	// Marshal to JSON

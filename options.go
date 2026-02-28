@@ -127,3 +127,64 @@ func CommonSensitiveKeys() []string {
 func WithCommonRedaction() Option {
 	return WithRedactor(CommonSensitiveKeys()...)
 }
+
+// CallerOption is the actual implementation for WithCaller option
+type CallerOption struct {
+	Enabled bool
+}
+
+// WithCaller enables or disables caller information in log entries.
+// When enabled, each log entry includes file name, line number, and function name.
+//
+// Example output with caller enabled:
+//
+//	[2026/02/28 17:30:00] INFO main.go:42 myFunction connection established
+//
+// Performance note: Enabling caller adds ~100-200ns per log call.
+func WithCaller(enabled bool) Option {
+	return &CallerOption{Enabled: enabled}
+}
+
+// StackTraceOption is the actual implementation for WithStackTrace option
+type StackTraceOption struct {
+	Enabled bool
+}
+
+// WithStackTrace enables or disables stack trace capture in log entries.
+// Stack traces are captured for Error level and above by default.
+//
+// Use WithStackTraceLevel to customize the minimum level for stack traces.
+func WithStackTrace(enabled bool) Option {
+	return &StackTraceOption{Enabled: enabled}
+}
+
+// StackTraceLevelOption is the actual implementation for WithStackTraceLevel option
+type StackTraceLevelOption struct {
+	Level Level
+}
+
+// WithStackTraceLevel sets the minimum level for automatic stack trace capture.
+// Stack traces will only be captured for log entries at or above this level.
+//
+// Default: ErrorLevel (stack traces for Error and Fatal)
+// Common values:
+//   - WarnLevel: Capture for Warn, Error, Fatal
+//   - ErrorLevel: Capture for Error, Fatal (default)
+//   - FatalLevel: Capture only for Fatal
+func WithStackTraceLevel(level Level) Option {
+	return &StackTraceLevelOption{Level: level}
+}
+
+// CallerSkipOption is the actual implementation for WithCallerSkip option
+type CallerSkipOption struct {
+	Skip int
+}
+
+// WithCallerSkip sets the number of stack frames to skip when capturing caller info.
+// This is useful when wrapping the logger with additional helper functions.
+//
+// Default: 2 (skips GetCaller and Log methods)
+// Increase this value if you have additional wrapper functions.
+func WithCallerSkip(skip int) Option {
+	return &CallerSkipOption{Skip: skip}
+}
