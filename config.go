@@ -4,7 +4,9 @@ import (
 	"github.com/drossan/go_logs/adapters"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
+	"sync"
 )
 
 var isInit bool
@@ -21,19 +23,17 @@ var notificationLogWarning bool
 var notificationLogInfo bool
 var notificationLogSuccess bool
 
-var notificationSettings = map[string]bool{
-	"FATAL":   notificationLogFatal,
-	"ERROR":   notificationLogError,
-	"WARNING": notificationLogWarning,
-	"INFO":    notificationLogInfo,
-	"SUCCESS": notificationLogSuccess,
-}
+// Issue #1 Fix: Protect notificationSettings with mutex for concurrent access
+var (
+	notificationSettings      map[string]bool
+	notificationSettingsMutex sync.RWMutex
+)
 
 var notifier *adapters.SlackNotifier
 
-var err error
-
 func Init() {
+	var err error // Issue #3 Fix: Local error variable instead of global
+
 	isInit = true
 
 	saveLogFile, err = strconv.ParseBool(os.Getenv("SAVE_LOG_FILE"))
@@ -65,6 +65,8 @@ func Init() {
 }
 
 func loadNotificationsConfig() {
+	var err error // Issue #3 Fix: Local error variable instead of global
+
 	notificationLogFatal, err = strconv.ParseBool(os.Getenv("NOTIFICATION_FATAL_LOG"))
 	if err != nil {
 		log.Fatalf("Error parsing NOTIFICATION_FATAL_LOG: %v", err)
@@ -90,6 +92,8 @@ func loadNotificationsConfig() {
 		log.Fatalf("Error parsing NOTIFICATION_SUCCESS_LOG: %v", err)
 	}
 
+	// Issue #1 Fix: Protect map write with mutex
+	notificationSettingsMutex.Lock()
 	notificationSettings = map[string]bool{
 		"FATAL":   notificationLogFatal,
 		"ERROR":   notificationLogError,
@@ -97,6 +101,21 @@ func loadNotificationsConfig() {
 		"INFO":    notificationLogInfo,
 		"SUCCESS": notificationLogSuccess,
 	}
+	notificationSettingsMutex.Unlock()
+}
+
+// getNotificationSettings returns whether notifications are enabled for a given log level
+// Thread-safe getter for notificationSettings with nil-check (Issue #2)
+func getNotificationSettings(level string) bool {
+	notificationSettingsMutex.RLock()
+	defer notificationSettingsMutex.RUnlock()
+
+	// Issue #2 Fix: Return false if map is not yet initialized
+	if notificationSettings == nil {
+		return false
+	}
+
+	return notificationSettings[level]
 }
 
 func loadSlackConfig() {
@@ -104,7 +123,16 @@ func loadSlackConfig() {
 }
 
 func openLogFile() *os.File {
-	file, err := os.OpenFile(logFilePath+"/"+logFileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	// Issue #4 Fix: Use filepath.Join() for portable path construction
+	// Handle empty logFilePath gracefully
+	var fullPath string
+	if logFilePath == "" {
+		fullPath = logFileName
+	} else {
+		fullPath = filepath.Join(logFilePath, logFileName)
+	}
+
+	file, err := os.OpenFile(fullPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		log.Fatalf("Error opening log file: %v", err)
 	}
