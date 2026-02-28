@@ -20,6 +20,14 @@ type Entry struct {
 
 	// Timestamp is when this log entry was created
 	Timestamp time.Time
+
+	// Caller contains information about the calling function (optional)
+	// Only populated when WithCaller(true) is configured
+	Caller *CallerInfo
+
+	// StackTrace contains the stack trace (optional)
+	// Only populated when WithStackTrace(true) is configured and level meets threshold
+	StackTrace []byte
 }
 
 // String returns a simple string representation of the entry.
@@ -104,6 +112,23 @@ func (e *Entry) Clone() *Entry {
 	if len(e.Fields) > 0 {
 		cloned.Fields = make([]Field, len(e.Fields))
 		copy(cloned.Fields, e.Fields)
+	}
+
+	// Copy caller info
+	if e.Caller != nil {
+		cloned.Caller = &CallerInfo{
+			File:     e.Caller.File,
+			FileFull: e.Caller.FileFull,
+			Line:     e.Caller.Line,
+			Func:     e.Caller.Func,
+			Package:  e.Caller.Package,
+		}
+	}
+
+	// Copy stack trace
+	if e.StackTrace != nil {
+		cloned.StackTrace = make([]byte, len(e.StackTrace))
+		copy(cloned.StackTrace, e.StackTrace)
 	}
 
 	return cloned

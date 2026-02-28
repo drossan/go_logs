@@ -157,6 +157,43 @@ reqLogger.Info("processing data")
 reqLogger.Error("validation failed")
 ```
 
+## Caller Info
+
+Muestra automáticamente archivo, línea y función en cada log:
+
+```go
+logger, _ := go_logs.New(
+    go_logs.WithCaller(true),
+)
+
+logger.Info("user logged in")
+// Output: [2026/02/28 17:30:00] INFO main.go:42 handleLogin user logged in
+```
+
+Output en JSON:
+```json
+{"timestamp":"2026-02-28T17:30:00Z","level":"INFO","caller":"main.go:42","caller_func":"handleLogin","message":"user logged in"}
+```
+
+## Stack Traces
+
+Captura automática de stack trace en errores:
+
+```go
+logger, _ := go_logs.New(
+    go_logs.WithStackTrace(true),
+    go_logs.WithStackTraceLevel(go_logs.ErrorLevel), // Solo en Error+
+)
+
+logger.Error("database connection failed")
+// Output incluye stack trace completo
+```
+
+Configuración de niveles:
+- `WarnLevel`: Stack trace para Warn, Error, Fatal
+- `ErrorLevel`: Stack trace para Error, Fatal (default)
+- `FatalLevel`: Stack trace solo para Fatal
+
 ## Context Propagation
 
 Extrae automáticamente trace_id y span_id del contexto:
@@ -326,6 +363,32 @@ go_logs.Err(err)
 go_logs.Any("data", struct{...}{...})
 ```
 
+### Options
+
+```go
+// Nivel de log
+go_logs.WithLevel(go_logs.InfoLevel)
+
+// Salida
+go_logs.WithOutput(os.Stdout)
+go_logs.WithFormatter(go_logs.NewJSONFormatter())
+
+// Caller info (archivo:línea:función)
+go_logs.WithCaller(true)           // Habilitar caller info
+go_logs.WithCallerSkip(2)          // Ajustar frames a saltar
+
+// Stack traces
+go_logs.WithStackTrace(true)                    // Habilitar stack traces
+go_logs.WithStackTraceLevel(go_logs.ErrorLevel) // Nivel mínimo
+
+// Hooks y redacción
+go_logs.WithHooks(myHook)
+go_logs.WithCommonRedaction()
+
+// Rotación de archivos
+go_logs.WithRotatingFile("/var/log/app.log", 100, 5)
+```
+
 ## API v2 (Legacy)
 
 ### Funciones Básicas
@@ -419,7 +482,13 @@ GO111MODULE=on go tool cover -html=coverage.out
 
 ## Changelog
 
-### v3.0 (Actual)
+### v3.1 (Actual)
+
+- Caller Info: archivo, línea y función en cada log
+- Stack Traces: captura automática en Error+
+- WithCaller(), WithStackTrace(), WithStackTraceLevel() options
+
+### v3.0
 
 - Structured logging con campos tipados
 - Child loggers con propagación de campos
