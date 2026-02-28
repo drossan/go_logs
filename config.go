@@ -40,6 +40,33 @@ var (
 	logFileMu   sync.Mutex
 )
 
+// Init initializes the go_logs package with configuration from environment variables.
+//
+// This function must be called before using any logging functions. It reads configuration
+// from environment variables and sets up file logging and Slack notifications if enabled.
+//
+// Environment Variables:
+//   - SAVE_LOG_FILE: Enable file logging (0 or 1, default: 0)
+//   - LOG_FILE_NAME: Name of the log file (default: "log.txt")
+//   - LOG_FILE_PATH: Directory path for log files (default: current directory)
+//   - NOTIFICATIONS_SLACK_ENABLED: Enable Slack notifications (0 or 1, default: 0)
+//   - NOTIFICATION_FATAL_LOG: Send fatal logs to Slack (0 or 1)
+//   - NOTIFICATION_ERROR_LOG: Send error logs to Slack (0 or 1)
+//   - NOTIFICATION_WARNING_LOG: Send warning logs to Slack (0 or 1)
+//   - NOTIFICATION_INFO_LOG: Send info logs to Slack (0 or 1)
+//   - NOTIFICATION_SUCCESS_LOG: Send success logs to Slack (0 or 1)
+//   - SLACK_TOKEN: Slack bot token for notifications
+//   - SLACK_CHANNEL_ID: Slack channel ID for notifications
+//
+// Example:
+//   // Set environment variables before calling Init()
+//   os.Setenv("SAVE_LOG_FILE", "1")
+//   os.Setenv("LOG_FILE_NAME", "app.log")
+//   go_logs.Init()
+//   go_logs.InfoLog("Application started")
+//
+// Note: Init() can be called multiple times safely, but subsequent calls may not
+// reinitialize components that are already set up (like the persistent log file).
 func Init() {
 	var err error // Issue #3 Fix: Local error variable instead of global
 
@@ -205,14 +232,41 @@ func closeLogFile(file *os.File) {
 	logFileOnce = sync.Once{}
 }
 
-// Close is the public API to close the log file cleanly
-// Issue #9: New public function for explicit cleanup
+// Close flushes and closes the persistent log file cleanly.
+//
+// This function should be called when shutting down the application to ensure
+// all buffered log messages are written to the log file. It is safe to call
+// multiple times (idempotent).
+//
+// After calling Close(), the log file can be reopened by calling any logging function,
+// which will automatically reinitialize the log file.
+//
+// Example:
+//   defer go_logs.Close()
+//   go_logs.InfoLog("Application shutting down")
+//
+// Note: If the log file was never opened (SAVE_LOG_FILE=0), this function does nothing.
 func Close() {
 	closeLogFile(nil)
 }
 
-// IsNotifierEnabled returns whether Slack notifications are enabled
-// Issue #7: Public accessor for testing (enabled field is private)
+// IsNotifierEnabled returns whether Slack notifications are enabled.
+//
+// This function provides a way to check if Slack notifications have been successfully
+// initialized and are available. It returns false if:
+//   - Slack notifications are disabled (NOTIFICATIONS_SLACK_ENABLED=0)
+//   - Slack credentials are missing (SLACK_TOKEN or SLACK_CHANNEL_ID not set)
+//   - The notifier failed to initialize
+//
+// Returns:
+//   true if Slack notifications are enabled and available, false otherwise
+//
+// Example:
+//   if go_logs.IsNotifierEnabled() {
+//       go_logs.InfoLog("Slack notifications are active")
+//   } else {
+//       go_logs.WarningLog("Slack notifications are not configured")
+//   }
 func IsNotifierEnabled() bool {
 	if notifier == nil {
 		return false
