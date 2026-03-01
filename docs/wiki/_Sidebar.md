@@ -23,6 +23,7 @@
 - [Context & Tracing](Context-and-Tracing)
 - [Hooks](Hooks)
 - [File Rotation](File-Rotation)
+- [Optional Modules](Optional-Modules)
 
 **Configuration**
 - [Configuration](Configuration)
@@ -52,6 +53,7 @@
 - [Contexto y Tracing](Context-and-Tracing-es)
 - [Hooks](Hooks-es)
 - [Rotacion de Archivos](File-Rotation-es)
+- [Modulos Opcionales](Optional-Modules-es)
 
 **Configuracion**
 - [Configuracion](Configuration-es)

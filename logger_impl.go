@@ -51,6 +51,9 @@ type LoggerImpl struct {
 
 	// stackTraceLevel is the minimum level for stack trace capture
 	stackTraceLevel Level
+
+	// metrics collects logging statistics (always enabled, zero overhead)
+	metrics *Metrics
 }
 
 // NewLogger creates a new logger implementation with the given options.
@@ -68,6 +71,7 @@ func NewLogger(opts ...Option) (Logger, error) {
 		callerSkip:       2, // Default skip: GetCaller + Log
 		enableStackTrace: false,
 		stackTraceLevel:  ErrorLevel, // Default: capture stack for Error+
+		metrics:          NewMetrics(), // Always enabled, zero overhead
 	}
 
 	// Apply options
@@ -145,6 +149,11 @@ func (l *LoggerImpl) Log(level Level, msg string, fields ...Field) {
 	// This is the critical performance optimization
 	if !level.shouldLog(l.getLevel()) {
 		return
+	}
+
+	// Increment metrics (atomic, zero overhead)
+	if l.metrics != nil {
+		l.metrics.Increment(level)
 	}
 
 	// Create entry
@@ -250,6 +259,7 @@ func (l *LoggerImpl) With(fields ...Field) Logger {
 		callerSkip:       l.callerSkip,
 		enableStackTrace: l.enableStackTrace,
 		stackTraceLevel:  l.stackTraceLevel,
+		metrics:          l.metrics, // Share metrics with parent
 	}
 }
 
@@ -343,4 +353,17 @@ func (l *LoggerImpl) getFormatter() Formatter {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 	return l.formatter
+}
+
+// GetMetrics returns the metrics instance for this logger.
+// Metrics are shared between parent and child loggers.
+//
+// Example:
+//
+//	logger, _ := go_logs.New()
+//	metrics := logger.GetMetrics()
+//	fmt.Printf("Total logs: %d\n", metrics.Total())
+//	fmt.Printf("Errors: %d\n", metrics.Count(go_logs.ErrorLevel))
+func (l *LoggerImpl) GetMetrics() *Metrics {
+	return l.metrics
 }

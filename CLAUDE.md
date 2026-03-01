@@ -10,6 +10,48 @@ Esta es una biblioteca de registro moderna para Go (`go_logs` v3) que proporcion
 
 ## Arquitectura v3
 
+### Arquitectura Híbrida
+
+El proyecto sigue una **arquitectura híbrida** con el core en el paquete principal y features opcionales como submódulos:
+
+```
+go_logs/
+├── Core (paquete principal - siempre incluido)
+│   ├── logger.go              # Interfaz Logger principal
+│   ├── logger_impl.go         # Implementación thread-safe de Logger
+│   ├── level.go               # Syslog-style Level
+│   ├── field.go               # Structured Fields
+│   ├── entry.go               # Log entry
+│   ├── formatter.go           # Interfaz Formatter
+│   ├── text_formatter.go      # TextFormatter (desarrollo)
+│   ├── json_formatter.go      # JSONFormatter (producción)
+│   ├── context.go             # Context propagation
+│   ├── hook.go                # Hook interface
+│   ├── rotating_writer.go     # RotatingFileWriter
+│   ├── options.go             # Option pattern
+│   ├── config.go              # Configuración
+│   ├── metrics.go             # Metrics/Stats (zero overhead)
+│   └── api.go                 # API v2 (backward compatible)
+│
+├── async/                 # Submódulo: Async logging (opt-in)
+│   └── async.go           # Non-blocking logging con goroutine
+│
+├── http/                  # Submódulo: HTTP endpoints (opt-in)
+│   └── dynamic_level.go   # Log level dinámico via HTTP
+│
+├── signal/                # Submódulo: Signal handlers (opt-in)
+│   └── signal.go          # SIGHUP handler para rotación
+│
+├── domain/                # Interfaces del dominio (v2 legacy)
+│   └── notification.go    # Interfaz Notifier
+│
+├── adapters/              # Adaptadores externos (v2 legacy)
+│   └── slack_notifier.go  # SlackNotifier
+│
+└── hooks/                 # Hooks v3
+    └── slack_hook.go      # SlackHook (v3 moderno)
+```
+
 ### Capas Principales
 
 ```
@@ -27,6 +69,7 @@ go_logs/
 ├── rotating_writer.go     # RotatingFileWriter sin dependencias
 ├── options.go             # Option pattern para configuración
 ├── config.go              # Configuración y variables de entorno
+├── metrics.go             # Metrics/Stats (zero overhead)
 ├── api.go                 # API v2 (backward compatible)
 ├── domain/                # Interfaces del dominio
 │   └── notification.go    # Interfaz Notifier (v2 legacy)
@@ -296,3 +339,65 @@ Opciones:
 - 30+ benchmarks
 - Race detector clean
 - ~90% coverage en código crítico
+
+## Features Opcionales (Submódulos)
+
+### Metrics (Core - Siempre habilitado)
+
+```go
+logger, _ := go_logs.New()
+metrics := logger.GetMetrics()
+
+// Métricas disponibles
+fmt.Printf("Total logs: %d\n", metrics.Total())
+fmt.Printf("Errors: %d\n", metrics.Count(go_logs.ErrorLevel))
+fmt.Printf("Dropped: %d\n", metrics.Dropped())
+
+// Snapshot para monitoring
+snapshot := metrics.Snapshot()
+```
+
+### Async Logging (Submódulo - Opt-in)
+
+```go
+import "github.com/drossan/go_logs/async"
+
+syncLogger, _ := go_logs.New(go_logs.WithLevel(go_logs.InfoLevel))
+asyncLogger := async.Wrap(syncLogger, 1000) // buffer size 1000
+defer asyncLogger.Sync()
+
+// Non-blocking logging
+asyncLogger.Info("Server started", go_logs.Int("port", 8080))
+```
+
+### Dynamic Level via HTTP (Submódulo - Opt-in)
+
+```go
+import httplogs "github.com/drossan/go_logs/http"
+
+logger, _ := go_logs.New(go_logs.WithLevel(go_logs.InfoLevel))
+handler := httplogs.NewDynamicLevelHandler(logger, httplogs.Config{
+    Endpoint:  "/debug/level",
+    AuthToken: "secret-token",
+})
+
+http.Handle("/debug/", handler)
+// GET /debug/level → {"level": "INFO"}
+// PUT /debug/level {"level": "debug"} → 200 OK
+// GET /debug/level/metrics → métricas de logging
+```
+
+### SIGHUP Handler (Submódulo - Opt-in)
+
+```go
+import "github.com/drossan/go_logs/signal"
+
+writer, _ := go_logs.NewRotatingFileWriter("/var/log/app.log", 100, 5)
+logger, _ := go_logs.New(go_logs.WithOutput(writer))
+
+handler := signal.NewSIGHUPHandler(signal.WrapRotator(writer))
+handler.Register()
+defer handler.Stop()
+
+// Logs rotarán al recibir SIGHUP del sistema
+```
