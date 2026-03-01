@@ -36,4 +36,5 @@ Thumbs.db
 *.log
 
 # Wiki clone directory (used by sync-wiki workflow locally)
-wiki/
+# Only ignore root wiki/ directory, not docs/wiki/
+/wiki/
