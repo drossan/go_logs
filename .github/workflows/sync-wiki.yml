@@ -1,0 +1,132 @@
+# Sync docs/wiki to GitHub Wiki
+# This workflow synchronizes the documentation in docs/wiki/ to the repository's Wiki
+#
+# Triggered on:
+# - Push to main/develop branches when docs/wiki/** changes
+# - Manual dispatch
+
+name: Sync Wiki Documentation
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'docs/wiki/**'
+      - '.github/workflows/sync-wiki.yml'
+  workflow_dispatch:
+    inputs:
+      commit_message:
+        description: 'Custom commit message for wiki update'
+        required: false
+        default: 'Update wiki documentation'
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  sync-wiki:
+    runs-on: ubuntu-latest
+    name: Sync docs/wiki to GitHub Wiki
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Clone Wiki repository
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # The wiki repository has the same name as the main repo with .wiki.git suffix
+          WIKI_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git"
+
+          # Clone the wiki if it exists, otherwise initialize a new one
+          if git ls-remote "${WIKI_URL}" 2>/dev/null; then
+            git clone "${WIKI_URL}" wiki
+            echo "wiki_exists=true" >> $GITHUB_ENV
+          else
+            mkdir -p wiki
+            cd wiki
+            git init
+            git remote add origin "${WIKI_URL}"
+            echo "wiki_exists=false" >> $GITHUB_ENV
+            cd ..
+          fi
+
+      - name: Sync documentation
+        run: |
+          # Clear existing wiki content (except .git directory)
+          find wiki -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+
+          # Copy all markdown files from docs/wiki to wiki directory
+          if [ -d "docs/wiki" ]; then
+            cp -r docs/wiki/* wiki/
+
+            # List copied files for debugging
+            echo "Files synced to wiki:"
+            ls -la wiki/*.md 2>/dev/null || echo "No markdown files found"
+          else
+            echo "Error: docs/wiki directory not found"
+            exit 1
+          fi
+
+      - name: Commit and push changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd wiki
+
+          # Check if there are any changes
+          if git diff --quiet && git diff --staged --quiet 2>/dev/null; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          # Stage all changes
+          git add -A
+
+          # Use custom commit message if provided, otherwise generate one
+          if [ -n "${{ inputs.commit_message }}" ]; then
+            COMMIT_MSG="${{ inputs.commit_message }}"
+          else
+            # Get the commit that triggered this workflow
+            TRIGGER_SHA="${{ github.sha }}"
+            SHORT_SHA=$(echo "${TRIGGER_SHA}" | cut -c1-7)
+            COMMIT_MSG="Sync wiki from ${SHORT_SHA} [skip ci]"
+          fi
+
+          git commit -m "${COMMIT_MSG}"
+
+          # Push to wiki repository
+          WIKI_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git"
+          git remote set-url origin "${WIKI_URL}"
+          git push origin master || git push -u origin master
+
+          echo "Wiki updated successfully!"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Wiki Sync Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Documentation has been synchronized from \`docs/wiki/\` to the repository Wiki." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Files Synced" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -d "docs/wiki" ]; then
+            for file in docs/wiki/*.md; do
+              filename=$(basename "$file")
+              echo "- \`${filename}\`" >> $GITHUB_STEP_SUMMARY
+            done
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "[View Wiki](https://github.com/${GITHUB_REPOSITORY}/wiki)" >> $GITHUB_STEP_SUMMARY
