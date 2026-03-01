@@ -359,6 +359,100 @@ logger.Info("user login",
 
 Campos enmascarados por defecto: `password`, `passwd`, `pwd`, `token`, `secret`, `api_key`, `apikey`, `authorization`, `auth`.
 
+## Submódulos Opcionales (Arquitectura Híbrida)
+
+### Metrics (Core - Siempre habilitado)
+
+Estadísticas de logging con zero overhead:
+
+```go
+logger, _ := go_logs.New()
+metrics := logger.GetMetrics()
+
+// Métricas disponibles
+fmt.Printf("Total logs: %d\n", metrics.Total())
+fmt.Printf("Errors: %d\n", metrics.Count(go_logs.ErrorLevel))
+fmt.Printf("Dropped: %d\n", metrics.Dropped())
+
+// Snapshot para monitoring
+snapshot := metrics.Snapshot()
+// snapshot.Total, snapshot.ByLevel[InfoLevel], etc.
+
+// Reset para testing
+metrics.Reset()
+```
+
+### Async Logging (Submódulo - Opt-in)
+
+Logging non-blocking para alta carga:
+
+```go
+import "github.com/drossan/go_logs/async"
+
+// Crear logger síncrono base
+syncLogger, _ := go_logs.New(go_logs.WithLevel(go_logs.InfoLevel))
+
+// Envolver con async (buffer size 1000)
+asyncLogger := async.Wrap(syncLogger, 1000)
+defer asyncLogger.Sync()
+
+// Non-blocking logging
+asyncLogger.Info("Server started", go_logs.Int("port", 8080))
+
+// Configuración avanzada
+asyncLogger := async.WrapWithConfig(syncLogger, async.Config{
+    BufferSize:      10000,
+    ShutdownTimeout: 10 * time.Second,
+})
+
+// Child logger con campos
+childLogger := asyncLogger.With(go_logs.String("request_id", "abc-123"))
+```
+
+### Dynamic Level via HTTP (Submódulo - Opt-in)
+
+Cambiar nivel de log en runtime via HTTP:
+
+```go
+import httplogs "github.com/drossan/go_logs/http"
+
+logger, _ := go_logs.New(go_logs.WithLevel(go_logs.InfoLevel))
+
+handler := httplogs.NewDynamicLevelHandler(logger, httplogs.Config{
+    Endpoint:  "/debug/level",
+    AuthToken: "secret-token",      // Bearer token auth
+    RateLimit: 10,                  // 10 req/seg
+    AllowedIPs: []string{"10.0.0.0/8", "192.168.1.100"},
+})
+
+http.Handle("/debug/", handler)
+
+// Endpoints disponibles:
+// GET /debug/level → {"level": "INFO", "timestamp": "..."}
+// PUT /debug/level {"level": "debug"} → 200 OK
+// GET /debug/level/metrics → {"total": 1234, "by_level": {...}, "dropped": 0}
+```
+
+### SIGHUP Handler (Submódulo - Opt-in)
+
+Rotación de logs al recibir señal del sistema:
+
+```go
+import "github.com/drossan/go_logs/signal"
+
+writer, _ := go_logs.NewRotatingFileWriter("/var/log/app.log", 100, 5)
+logger, _ := go_logs.New(go_logs.WithOutput(writer))
+
+// Crear handler para SIGHUP
+handler := signal.NewSIGHUPHandler(signal.WrapRotator(writer))
+handler.Register()
+defer handler.Stop()
+
+// Logs rotarán al recibir SIGHUP del sistema (ej: logrotate)
+// También funciona con señales personalizadas:
+handler := signal.NewSIGHUPHandler(rotator, syscall.SIGUSR1, syscall.SIGUSR2)
+```
+
 ## Configuración
 
 ### Variables de Entorno
@@ -665,7 +759,37 @@ GO111MODULE=on go tool cover -html=coverage.out
 
 ## Changelog
 
-### v3.4 (Actual)
+### v3.5 (Actual)
+
+**Arquitectura Híbrida** - Core + submódulos opcionales
+
+- **Metrics (Core)**: Estadísticas de logging con zero overhead
+  - Contadores por nivel (Total, Info, Error, etc.)
+  - Contador de logs dropeados (async)
+  - Snapshots para monitoring
+  - Thread-safe con atomic operations
+
+- **async/** (Submódulo): Logging asíncrono non-blocking
+  - Buffered channel para alto throughput
+  - Drop-on-overflow cuando buffer lleno
+  - Graceful shutdown con timeout
+  - Métricas compartidas con logger síncrono
+
+- **http/** (Submódulo): Log level dinámico via HTTP
+  - GET /log-level - Obtener nivel actual
+  - PUT /log-level - Cambiar nivel
+  - GET /log-level/metrics - Métricas de logging
+  - Bearer token authentication
+  - Rate limiting
+  - IP whitelisting (exacto y CIDR)
+
+- **signal/** (Submódulo): SIGHUP handler para rotación
+  - Rotación de logs al recibir señal del sistema
+  - Compatible con logrotate de Linux
+  - Señales personalizables
+  - Thread-safe
+
+### v3.4
 
 - OpenTelemetry/OTLP: Envío de logs a collectors OpenTelemetry
 - Syslog Hook: Integración con syslog local y remoto (RFC5424)
