@@ -1,5 +1,12 @@
 # go_logs v3
 
+**[English](#english)** | **[Espanol](Home-es)**
+
+---
+
+<a name="english"></a>
+## English
+
 A modern, structured logging library for Go with zero external dependencies (except optional Slack integration).
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/drossan/go_logs.svg)](https://pkg.go.dev/github.com/drossan/go_logs)
@@ -138,31 +145,6 @@ See [Installation](Installation.md) for detailed instructions.
 | RotatingFileWriter | 16M msg/sec |
 
 See [Performance](Performance.md) for detailed benchmarks.
-
-## Architecture
-
-```
-go_logs/
-+-- logger.go              # Logger interface (core abstraction)
-+-- logger_impl.go         # Thread-safe implementation
-+-- level.go               # Syslog-style Level type
-+-- field.go               # Structured Fields (String, Int, Err, etc.)
-+-- entry.go               # Log entry with timestamp, level, message, fields
-+-- formatter.go           # Formatter interface
-+-- text_formatter.go      # TextFormatter (development)
-+-- json_formatter.go      # JSONFormatter (production)
-+-- context.go             # Context management (WithTraceID, etc.)
-+-- hook.go                # Hook interface for extensibility
-+-- rotating_writer.go     # RotatingFileWriter
-+-- options.go             # Option pattern for configuration
-+-- config.go              # Environment variables
-+-- api.go                 # v2 API (backward compatible)
-+-- global.go              # Global logger instance
-+-- caller.go              # Caller information capture
-+-- multiwriter.go         # Multiple output writers
-+-- sampling.go            # Log sampling for high-volume
-+-- testing.go             # Testing utilities
-```
 
 ## Quick Examples
 
