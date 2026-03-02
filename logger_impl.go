@@ -46,6 +46,10 @@ type LoggerImpl struct {
 	// callerSkip is the number of stack frames to skip
 	callerSkip int
 
+	// callerLevel is the minimum level for automatic caller info capture
+	// If level >= callerLevel, caller info is captured automatically
+	callerLevel Level
+
 	// enableStackTrace enables stack trace capture
 	enableStackTrace bool
 
@@ -69,6 +73,7 @@ func NewLogger(opts ...Option) (Logger, error) {
 		flags:            0,
 		enableCaller:     false,
 		callerSkip:       2, // Default skip: GetCaller + Log
+		callerLevel:      ErrorLevel, // Default: auto-capture caller for Error+
 		enableStackTrace: false,
 		stackTraceLevel:  ErrorLevel, // Default: capture stack for Error+
 		metrics:          NewMetrics(), // Always enabled, zero overhead
@@ -108,6 +113,10 @@ func NewLogger(opts ...Option) (Logger, error) {
 		case *CallerSkipOption:
 			l.mu.Lock()
 			l.callerSkip = o.Skip
+			l.mu.Unlock()
+		case *CallerLevelOption:
+			l.mu.Lock()
+			l.callerLevel = o.Level
 			l.mu.Unlock()
 		case *StackTraceOption:
 			l.mu.Lock()
@@ -164,8 +173,8 @@ func (l *LoggerImpl) Log(level Level, msg string, fields ...Field) {
 		Timestamp: time.Now(),
 	}
 
-	// Capture caller info if enabled
-	if l.enableCaller {
+	// Capture caller info if enabled or level meets auto-capture threshold
+	if l.enableCaller || level >= l.callerLevel {
 		entry.Caller = GetCaller(l.callerSkip)
 	}
 
@@ -257,6 +266,7 @@ func (l *LoggerImpl) With(fields ...Field) Logger {
 		flags:            l.flags,
 		enableCaller:     l.enableCaller,
 		callerSkip:       l.callerSkip,
+		callerLevel:      l.callerLevel,
 		enableStackTrace: l.enableStackTrace,
 		stackTraceLevel:  l.stackTraceLevel,
 		metrics:          l.metrics, // Share metrics with parent

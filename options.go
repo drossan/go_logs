@@ -189,6 +189,26 @@ func WithCallerSkip(skip int) Option {
 	return &CallerSkipOption{Skip: skip}
 }
 
+// CallerLevelOption is the actual implementation for WithCallerLevel option
+type CallerLevelOption struct {
+	Level Level
+}
+
+// WithCallerLevel sets the minimum level for automatic caller info capture.
+// Caller info (file:line function) will be captured for log entries at or above this level.
+//
+// Default: ErrorLevel (caller info for Error and Fatal)
+// Common values:
+//   - WarnLevel: Capture for Warn, Error, Fatal
+//   - ErrorLevel: Capture for Error, Fatal (default)
+//   - FatalLevel: Capture only for Fatal
+//   - SilentLevel: Disable automatic caller capture (use WithCaller(true) for all levels)
+//
+// Note: WithCaller(true) enables caller for ALL levels, overriding this setting.
+func WithCallerLevel(level Level) Option {
+	return &CallerLevelOption{Level: level}
+}
+
 // MultiOutputOption is the actual implementation for WithMultiOutput option
 type MultiOutputOption struct {
 	Writers []io.Writer
