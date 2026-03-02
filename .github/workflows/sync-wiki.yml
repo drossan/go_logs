@@ -1,0 +1,168 @@
+# Sync docs/wiki to GitHub Wiki
+# This workflow synchronizes the documentation in docs/wiki/ to the repository's Wiki
+#
+# IMPORTANT: The Wiki must be enabled in repository Settings first!
+# Go to Settings > Features > check "Wikis"
+# Then create at least one page manually to initialize the wiki repository
+#
+# Triggered on:
+# - Push to main/develop branches when docs/wiki/** changes
+# - Manual dispatch
+
+name: Sync Wiki Documentation
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'docs/wiki/**'
+      - '.github/workflows/sync-wiki.yml'
+  workflow_dispatch:
+    inputs:
+      commit_message:
+        description: 'Custom commit message for wiki update'
+        required: false
+        default: 'Update wiki documentation'
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  sync-wiki:
+    runs-on: ubuntu-latest
+    name: Sync docs/wiki to GitHub Wiki
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Clone Wiki repository
+        id: clone-wiki
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          WIKI_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git"
+
+          echo "Attempting to clone wiki repository..."
+
+          # Try to clone the wiki repository
+          if git clone "${WIKI_URL}" wiki 2>&1; then
+            echo "Wiki repository cloned successfully"
+            echo "wiki_exists=true" >> $GITHUB_OUTPUT
+            echo "Current wiki files:"
+            ls -la wiki/ 2>/dev/null || echo "Wiki directory is empty"
+          else
+            echo "::warning::Wiki repository not found or not initialized."
+            echo "::warning::Please enable Wikis in repository Settings and create at least one page."
+            echo "wiki_exists=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Sync documentation
+        if: steps.clone-wiki.outputs.wiki_exists == 'true'
+        run: |
+          echo "Syncing documentation..."
+
+          # Clear existing wiki content (except .git directory)
+          find wiki -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+
+          # Copy all markdown files from docs/wiki to wiki directory
+          # Exclude README.md as it's not a wiki page
+          if [ -d "docs/wiki" ]; then
+            # Copy all .md files except README.md
+            for file in docs/wiki/*.md; do
+              filename=$(basename "$file")
+              if [ "$filename" != "README.md" ]; then
+                cp "$file" "wiki/"
+                echo "Copied: $filename"
+              fi
+            done
+
+            echo ""
+            echo "Files synced to wiki:"
+            ls -la wiki/*.md 2>/dev/null || echo "No markdown files found"
+
+            # Count files
+            FILE_COUNT=$(find wiki -name "*.md" -type f | wc -l)
+            echo ""
+            echo "Total markdown files: $FILE_COUNT"
+          else
+            echo "::error::docs/wiki directory not found"
+            exit 1
+          fi
+
+      - name: Commit and push changes
+        if: steps.clone-wiki.outputs.wiki_exists == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd wiki
+
+          # Stage all changes first
+          git add -A
+
+          # Check if there are any changes to commit
+          if git diff --staged --quiet 2>/dev/null; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          # Use custom commit message if provided, otherwise generate one
+          if [ -n "${{ inputs.commit_message }}" ]; then
+            COMMIT_MSG="${{ inputs.commit_message }}"
+          else
+            TRIGGER_SHA="${{ github.sha }}"
+            SHORT_SHA=$(echo "${TRIGGER_SHA}" | cut -c1-7)
+            COMMIT_MSG="Sync wiki from ${SHORT_SHA}"
+          fi
+
+          git commit -m "${COMMIT_MSG}"
+
+          # Push to wiki repository
+          WIKI_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git"
+          git push origin master
+
+          echo "Wiki updated successfully!"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Wiki Sync Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.clone-wiki.outputs.wiki_exists }}" == "true" ]; then
+            echo "Documentation has been synchronized from \`docs/wiki/\` to the repository Wiki." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Files Synced" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            if [ -d "docs/wiki" ]; then
+              for file in docs/wiki/*.md; do
+                filename=$(basename "$file")
+                if [ "$filename" != "README.md" ]; then
+                  echo "- \`${filename}\`" >> $GITHUB_STEP_SUMMARY
+                fi
+              done
+            fi
+          else
+            echo "::warning::Wiki sync was skipped because the wiki repository is not initialized." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Setup Required" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "1. Go to repository **Settings** > **Features**" >> $GITHUB_STEP_SUMMARY
+            echo "2. Enable **Wikis**" >> $GITHUB_STEP_SUMMARY
+            echo "3. Go to the **Wiki** tab and create your first page" >> $GITHUB_STEP_SUMMARY
+            echo "4. Re-run this workflow" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "[View Wiki](https://github.com/${GITHUB_REPOSITORY}/wiki)" >> $GITHUB_STEP_SUMMARY
