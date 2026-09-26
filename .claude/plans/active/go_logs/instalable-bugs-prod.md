@@ -5,7 +5,7 @@ status: active           # pending | active | completed | cancelled
 branch: plan/go_logs/instalable-bugs-prod
 issue:
 created: 2026-09-26
-updated: 2026-09-26
+updated: 2026-09-27
 ---
 
 # go_logs instalable como v3, sin los bugs de producción y con sitio de documentación
@@ -110,7 +110,7 @@ El análisis de `.claude/reports/analisis-completo-20260926.md` (2026-09-26) rep
 - [x] `go_logs-instalable-bugs-prod-04` (P1) — `Flusher`: sin fsync por entrada, `Flush()` en los cuatro writers, `Logger.Sync()` real con errno ignorados  · depends_on: 01
 - [x] `go_logs-instalable-bugs-prod-05` (P1) — `async`: núcleo compartido entre padre e hijos, `Close()` idempotente y no-op en hijos  · depends_on: 01
 - [x] `go_logs-instalable-bugs-prod-06` (P1) — Slack fuera del core: submódulo `slack/`, `SetNotifier`, `config.go` sin `adapters`  · depends_on: 01, 02
-- [ ] `go_logs-instalable-bugs-prod-07` (P1) — `ci.yml` mínimo: gofmt, vet, test -race en raíz y `slack/`  · depends_on: 03, 04, 05, 06
+- [x] `go_logs-instalable-bugs-prod-07` (P1) — `ci.yml` mínimo: gofmt, vet, test -race en raíz y `slack/`  · depends_on: 03, 04, 05, 06
 - [ ] `go_logs-instalable-bugs-prod-08` (P2) — Sitio VitePress en `website/` con i18n y contenido migrado del wiki con snippets corregidos  · depends_on: 06
 - [ ] `go_logs-instalable-bugs-prod-09` (P2) — Workflow de despliegue a GitHub Pages  · depends_on: 08
 - [ ] `go_logs-instalable-bugs-prod-10` (P2) — README y wiki con snippets corregidos, `CLAUDE.md` veraz, changelog `v3.1.0` consolidado, GoReleaser v2, verificación e2e  · depends_on: 07, 09

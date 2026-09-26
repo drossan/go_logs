@@ -2,13 +2,13 @@
 id: go_logs-instalable-bugs-prod-07
 package: go_logs
 plan: instalable-bugs-prod
-status: pending
+status: done
 priority: 1
 depends_on: [go_logs-instalable-bugs-prod-03, go_logs-instalable-bugs-prod-04, go_logs-instalable-bugs-prod-05, go_logs-instalable-bugs-prod-06]
 estimate: 1h
-actual:
+actual: 15m
 created: 2026-09-26
-updated: 2026-09-26
+updated: 2026-09-27
 ---
 
 # `ci.yml` mínimo: gofmt, vet, test -race en raíz y `slack/`
@@ -103,13 +103,13 @@ Feature: Integración continua mínima para el módulo Go
 
 ## Definition of Done
 
-- [ ] Verificación registrada en el session log: YAML válido, secuencia local en verde, job en verde en GitHub tras el push (con enlace a la ejecución)
-- [ ] Todos los tests en verde: `go test -race ./...` en raíz y `slack/`
-- [ ] Spec cumplida; lo declarado en `Provides` queda realmente disponible para las tareas dependientes
-- [ ] Lint / format / typecheck OK: el propio job lo comprueba
-- [ ] Gate de `fact-checker` superado — afirmaciones de la sesión verificadas (INCORRECTO bloquea; NO VERIFICABLE = aviso a reconocer), antes de commit/resumen  · no-negociable
-- [ ] Documentación actualizada — tres capas:
-  - [ ] **Comentarios en el workflow** explicando cada paso (equivalente a godoc para YAML)
-  - [ ] **Doc técnica (contexto)** — badge en README; sección "Comandos comunes" de CLAUDE.md menciona que CI ejecuta la misma secuencia
-  - [ ] **Histórico de la tarea** — session log en `.claude/context/go_logs/go_logs-instalable-bugs-prod-07.md`
-- [ ] Commit en la rama del plan: `go_logs-instalable-bugs-prod-07: ci: <descripción>`
+- [x] Verificación registrada en el session log: YAML válido, secuencia local en verde, job en verde en GitHub tras el push (con enlace a la ejecución)
+- [x] Todos los tests en verde: `go test -race ./...` en raíz y `slack/`
+- [x] Spec cumplida; lo declarado en `Provides` queda realmente disponible para las tareas dependientes
+- [x] Lint / format / typecheck OK: el propio job lo comprueba
+- [x] Gate de `fact-checker` superado — afirmaciones de la sesión verificadas (INCORRECTO bloquea; NO VERIFICABLE = aviso a reconocer), antes de commit/resumen  · no-negociable
+- [x] Documentación actualizada — tres capas:
+  - [x] **Comentarios en el workflow** explicando cada paso (equivalente a godoc para YAML)
+  - [x] **Doc técnica (contexto)** — badge en README; sección "Comandos comunes" de CLAUDE.md menciona que CI ejecuta la misma secuencia
+  - [x] **Histórico de la tarea** — session log en `.claude/context/go_logs/go_logs-instalable-bugs-prod-07.md`
+- [x] Commit en la rama del plan: `go_logs-instalable-bugs-prod-07: ci: <descripción>`
