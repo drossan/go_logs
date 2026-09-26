@@ -54,7 +54,7 @@
 
 **Docs actualizadas**: godoc de `Flusher`, `isIgnorableSyncErr`, `ignorableSyncErrnos`, cada `Flush()`, `Syncer`, `MultiWriter.Sync`, `SamplingWriter.Sync`, `Logger.Sync` (interfaz + impl) y `writeEntry`/`getOutput`. `README.md` § "Flush por entrada y `Sync()`" (nueva, dentro de Rotating File Writer). `CLAUDE.md` § RotatingFileWriter (flush por entrada, `Sync`, errno, `Join`, cifra del benchmark) y § Organización del Código (`writer.go`). Lo pide la DoD. La tabla de rendimiento de README/CLAUDE.md (16M msg/s) no se toca: la regenera la tarea 10 con esta cifra.
 
-**Ficheros**: `writer.go`, `writer_errno.go`, `writer_errno_plan9.go` (nuevos); `logger.go`, `logger_impl.go`, `multiwriter.go`, `rotating_writer.go`, `rotating_writer_enhanced.go`, `sampling.go`; tests `flusher_test.go` (nuevo), `logger_test.go`, `benchmark_v3_test.go`; `README.md`, `CLAUDE.md`, task file, plan, este log.
+**Ficheros**: `writer.go`, `writer_errno.go`, `writer_errno_plan9.go` (nuevos); `logger.go`, `logger_impl.go`, `multiwriter.go`, `rotating_writer.go`, `rotating_writer_enhanced.go`, `sampling.go`; tests `flusher_test.go` (nuevo), `logger_test.go`, `benchmark_v3_test.go`; `README.md`, `CLAUDE.md`, task file, plan, este log. Commit `d9b7c54`: `go_logs-instalable-bugs-prod-04: fix(writer): per-entry Flush without fsync, Flusher on the four writers, real Logger.Sync ignoring terminal errno`.
 
 **Tiempo real**: ~0,25 h (23:01–23:15, más la espera del fact-checker; horas intermedias aproximadas) frente a 3 h estimadas.
 
