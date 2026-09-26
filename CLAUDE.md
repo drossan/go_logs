@@ -272,6 +272,9 @@ Rotación por tamaño sin dependencias externas:
 - Rota cuando alcanza LOG_MAX_SIZE MB
 - Mantiene hasta LOG_MAX_BACKUPS archivos
 - Buffered writes para performance
+- **Flush por entrada, sin fsync**: `writeEntry` llama a `Flush()` si el output implementa `Flusher` (`writer.go`) y nunca a `Sync()`. Lo implementan `RotatingFileWriter`, `EnhancedRotatingFileWriter`, `MultiWriter` y `SamplingWriter` (estos dos lo propagan a sus writers)
+- **`Logger.Sync()`** llama una vez al `Sync()` del output (flush + fsync en los writers de fichero) e ignora `EINVAL`/`ENOTTY`/`EBADF` por errno (`isIgnorableSyncErr`: stdout, tuberías, stdout dentro de `MultiWriter`). `MultiWriter.Sync/Flush` combinan errores con `errors.Join`, así que un error real no queda oculto por el de un terminal
+- Benchmark end-to-end `BenchmarkLoggerToRotatingFile` (Logger → JSON → fichero): ~3,3 µs/op (antes, con fsync por entrada, ~3,9 ms/op)
 
 ### Redactor
 
@@ -329,6 +332,7 @@ Opciones:
 - `context.go`: Context propagation
 - `hook.go`: Hook interface
 - `rotating_writer.go`: RotatingFileWriter
+- `writer.go`: interfaz `Flusher` e `isIgnorableSyncErr` (errno por plataforma en `writer_errno*.go`)
 - `options.go`: Option pattern
 
 ### Archivos v2 (Backward Compatible)

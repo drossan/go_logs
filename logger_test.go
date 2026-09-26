@@ -736,3 +736,44 @@ func TestLogger_LevelFilteringDoesNotTakeMutex(t *testing.T) {
 		t.Errorf("output = %q, want empty", buf.String())
 	}
 }
+
+// spyWriter is an io.Writer that counts Write, Flush and Sync calls and lets
+// tests inject the errors returned by Flush and Sync. It is safe for
+// concurrent use.
+type spyWriter struct {
+	mu       sync.Mutex
+	buf      bytes.Buffer
+	writes   int
+	flushes  int
+	syncs    int
+	flushErr error
+	syncErr  error
+}
+
+func (s *spyWriter) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.writes++
+	return s.buf.Write(p)
+}
+
+func (s *spyWriter) Flush() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.flushes++
+	return s.flushErr
+}
+
+func (s *spyWriter) Sync() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.syncs++
+	return s.syncErr
+}
+
+// counts returns the number of Write, Flush and Sync calls so far.
+func (s *spyWriter) counts() (writes, flushes, syncs int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.writes, s.flushes, s.syncs
+}

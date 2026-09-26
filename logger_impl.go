@@ -301,11 +301,25 @@ func (l *LoggerImpl) GetLevel() Level {
 	return l.getLevel()
 }
 
-// Sync implements Logger.Sync
+// Sync implements Logger.Sync.
+//
+// If the output implements Sync() error (RotatingFileWriter,
+// EnhancedRotatingFileWriter, MultiWriter, SamplingWriter, *os.File, ...) it
+// is called once: the writers of this package flush their buffer and fsync the
+// file. Outputs without Sync are left alone: entries were already flushed per
+// entry if the output is a Flusher. The errors that terminals and pipes return
+// for fsync (EINVAL, ENOTTY, EBADF; see isIgnorableSyncErr) are ignored; any
+// other error is returned.
 func (l *LoggerImpl) Sync() error {
-	// For now, this is a no-op since we're not buffering
-	// In Phase 5, this will flush the RotatingFileWriter
-	return nil
+	s, ok := l.getOutput().(interface{ Sync() error })
+	if !ok {
+		return nil
+	}
+	err := s.Sync()
+	if isIgnorableSyncErr(err) {
+		return nil
+	}
+	return err
 }
 
 // Helper methods
@@ -360,15 +374,22 @@ func (l *LoggerImpl) writeEntry(entry *Entry) {
 		formatted = []byte(entry.String() + "\n")
 	}
 
-	// Write to output
+	// Write to output, then flush user-space buffers (never fsync: that is
+	// Sync's job). Flush errors are ignored so a failing output does not break
+	// the caller.
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.output.Write(formatted)
-
-	// Flush if the output supports Sync (e.g., RotatingFileWriter)
-	if syncer, ok := l.output.(interface{ Sync() error }); ok {
-		syncer.Sync()
+	if f, ok := l.output.(Flusher); ok {
+		f.Flush()
 	}
+}
+
+// getOutput returns the current output with read lock
+func (l *LoggerImpl) getOutput() io.Writer {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+	return l.output
 }
 
 // getFormatter returns the current formatter with read lock

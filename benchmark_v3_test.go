@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"path/filepath"
 	"testing"
 )
 
@@ -299,6 +300,30 @@ func BenchmarkV3RotatingFileWriter(b *testing.B) {
 		WithLevel(InfoLevel),
 		WithFormatter(NewJSONFormatter()),
 		WithOutput(&buf),
+	)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		logger.Info("benchmark message",
+			String("key", "value"),
+			Int("count", i),
+		)
+	}
+}
+
+// BenchmarkLoggerToRotatingFile measures the end-to-end cost of one entry to a
+// real file: Logger -> JSONFormatter -> RotatingFileWriter (per-entry Flush,
+// no fsync).
+func BenchmarkLoggerToRotatingFile(b *testing.B) {
+	w, err := NewRotatingFileWriter(filepath.Join(b.TempDir(), "bench.log"), 1000, 1)
+	if err != nil {
+		b.Fatalf("NewRotatingFileWriter() error = %v", err)
+	}
+	defer w.Close()
+	logger, _ := New(
+		WithLevel(InfoLevel),
+		WithFormatter(NewJSONFormatter()),
+		WithOutput(w),
 	)
 	b.ReportAllocs()
 	b.ResetTimer()

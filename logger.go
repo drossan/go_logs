@@ -137,10 +137,16 @@ type Logger interface {
 	//   }
 	GetLevel() Level
 
-	// Sync flushes any buffered log entries.
+	// Sync flushes any buffered log entries and commits them to stable
+	// storage.
 	//
-	// Call this before application shutdown to ensure all logs are written.
-	// Returns an error if flushing fails.
+	// Every entry is already flushed to the output right after it is written
+	// (see Flusher), without fsync. Sync goes further: if the output
+	// implements Sync() error it is called once, which for the file writers of
+	// this package means flush + fsync. Call it before application shutdown.
+	//
+	// The errors that terminals and pipes return when synced (EINVAL, ENOTTY,
+	// EBADF, e.g. for os.Stdout) are ignored; any other error is returned.
 	//
 	// Example:
 	//   defer logger.Sync()

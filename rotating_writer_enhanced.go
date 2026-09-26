@@ -438,7 +438,19 @@ func (w *EnhancedRotatingFileWriter) openFile() error {
 	return nil
 }
 
-// Sync flushes buffered data
+// Flush implements Flusher: it writes the buffered data to the file without
+// fsync. The logger calls it after every entry. It is a no-op after Close.
+func (w *EnhancedRotatingFileWriter) Flush() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if w.writer == nil {
+		return nil
+	}
+	return w.writer.Flush()
+}
+
+// Sync flushes buffered data and fsyncs the file.
 func (w *EnhancedRotatingFileWriter) Sync() error {
 	w.mu.Lock()
 	defer w.mu.Unlock()

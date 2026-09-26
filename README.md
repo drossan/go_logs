@@ -352,6 +352,18 @@ logger, _ := go_logs.New(
 // Logs van a archivo Y consola simultáneamente
 ```
 
+### Flush por entrada y `Sync()`
+
+- **Flush por entrada, sin fsync**: si el output implementa `go_logs.Flusher` (`Flush() error`), el logger lo llama tras cada entrada. `RotatingFileWriter`, `EnhancedRotatingFileWriter`, `MultiWriter`, `SamplingWriter` y `*bufio.Writer` lo implementan (los dos wrappers lo propagan a sus writers), así que cada línea es legible en el fichero al momento, sin pagar un fsync por línea.
+- **`logger.Sync()` hace flush + fsync**: llama una vez al `Sync()` del output si lo tiene. Llámalo antes de salir (`defer logger.Sync()`).
+- **Errores ignorados**: `Sync()` descarta `EINVAL`, `ENOTTY` y `EBADF`, que son los que devuelven terminales y tuberías (p. ej. `os.Stdout`, también dentro de un `MultiWriter`). Cualquier otro error se devuelve; con `MultiWriter` se combinan con `errors.Join`, así que el error real de un writer no queda oculto por el de un terminal.
+
+```go
+file, _ := go_logs.NewRotatingFileWriter("app.log", 100, 5)
+logger, _ := go_logs.New(go_logs.WithOutput(go_logs.NewMultiWriter(file, os.Stdout)))
+defer logger.Sync() // fsync del fichero; el EBADF/EINVAL de stdout se ignora
+```
+
 ## Redactor de Datos Sensibles
 
 Enmascara automáticamente campos sensibles:

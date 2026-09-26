@@ -2,11 +2,11 @@
 id: go_logs-instalable-bugs-prod-04
 package: go_logs
 plan: instalable-bugs-prod
-status: pending
+status: done
 priority: 1
 depends_on: [go_logs-instalable-bugs-prod-01]
 estimate: 3h
-actual:
+actual: 0.25h
 created: 2026-09-26
 updated: 2026-09-26
 ---
@@ -182,14 +182,14 @@ Feature: Rendimiento end-to-end honesto a fichero
 
 ## Definition of Done
 
-- [ ] Tests escritos ANTES de la implementación (TDD) — Red → Green → Refactor
-- [ ] Cada escenario Gherkin tiene al menos un test (camino feliz + bordes/errores)
-- [ ] Todos los tests en verde: `go test -race .` y `go test ./...`; `file_writer_test.go` intacto y en verde
-- [ ] Spec cumplida; lo declarado en `Provides` queda realmente disponible para las tareas dependientes
-- [ ] Lint / format / typecheck OK: `gofmt -l` sin salida en los ficheros tocados; `go vet ./...` limpio; `GOOS=windows go build ./...` compila
-- [ ] Gate de `fact-checker` superado — afirmaciones de la sesión verificadas (INCORRECTO bloquea; NO VERIFICABLE = aviso a reconocer), antes de commit/resumen  · no-negociable
-- [ ] Documentación actualizada — tres capas:
-  - [ ] **godoc en el código** — `Flusher`, cada `Flush()`, `Logger.Sync` (interfaz e implementación), `isIgnorableSyncErr`
-  - [ ] **Doc técnica (contexto)** — README ("File Rotation" / "Sync") y CLAUDE.md: flush por entrada, fsync en `Sync()`, errores ignorados
-  - [ ] **Histórico de la tarea** — session log en `.claude/context/go_logs/go_logs-instalable-bugs-prod-04.md` con el número del benchmark
-- [ ] Commit en la rama del plan: `go_logs-instalable-bugs-prod-04: <conventional commit>`
+- [x] Tests escritos ANTES de la implementación (TDD) — Red → Green → Refactor
+- [x] Cada escenario Gherkin tiene al menos un test (camino feliz + bordes/errores)
+- [x] Todos los tests en verde: `go test -race .` y `go test ./...`; `file_writer_test.go` intacto y en verde
+- [x] Spec cumplida; lo declarado en `Provides` queda realmente disponible para las tareas dependientes
+- [x] Lint / format / typecheck OK: `gofmt -l` sin salida en los ficheros tocados; `go vet ./...` limpio; `GOOS=windows go build ./...` compila
+- [x] Gate de `fact-checker` superado — afirmaciones de la sesión verificadas (INCORRECTO bloquea; NO VERIFICABLE = aviso a reconocer), antes de commit/resumen  · no-negociable
+- [x] Documentación actualizada — tres capas:
+  - [x] **godoc en el código** — `Flusher`, cada `Flush()`, `Logger.Sync` (interfaz e implementación), `isIgnorableSyncErr`
+  - [x] **Doc técnica (contexto)** — README ("File Rotation" / "Sync") y CLAUDE.md: flush por entrada, fsync en `Sync()`, errores ignorados
+  - [x] **Histórico de la tarea** — session log en `.claude/context/go_logs/go_logs-instalable-bugs-prod-04.md` con el número del benchmark
+- [x] Commit en la rama del plan: `go_logs-instalable-bugs-prod-04: <conventional commit>`
