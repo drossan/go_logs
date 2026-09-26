@@ -14,13 +14,13 @@ type SlackNotifier interface {
 
 // SlackHook sends log entries to Slack based on level threshold.
 //
-// This hook integrates with the existing SlackNotifier adapter and
-// only sends notifications for log entries at or above the configured level.
+// Any SlackNotifier works; the Slack implementation lives in the optional
+// module github.com/drossan/go_logs/slack/v3 (*slack.Notifier). The hook only sends notifications for log entries at or above the configured level.
 // This prevents spamming Slack with info/debug messages.
 //
 // Example:
 //
-//	notifier, _ := adapters.NewSlackNotifier()
+//	notifier, _ := slack.NewNotifierFromEnv() // github.com/drossan/go_logs/slack/v3
 //	hook := hooks.NewSlackHook(notifier, go_logs.ErrorLevel)
 //	logger, _ := go_logs.New(go_logs.WithHooks(hook))
 type SlackHook struct {
@@ -41,7 +41,7 @@ type SlackHook struct {
 //
 // Example:
 //
-//	notifier, _ := adapters.NewSlackNotifier()
+//	notifier, _ := slack.NewNotifierFromEnv() // github.com/drossan/go_logs/slack/v3
 //	hook := hooks.NewSlackHook(notifier, go_logs.ErrorLevel)
 //
 //	// Only Error and Fatal logs will be sent to Slack

@@ -20,13 +20,13 @@ Cierre del plan: las tres fuentes de documentación (`README.md`, `docs/wiki/`, 
 ## Spec
 
 - **Snippets en `README.md` y `docs/wiki/*.md`** (los mismos cuatro patrones y ajustes que la tarea 08 aplicó a `website/`): `logger, err := go_logs.New(...)`; `WithHooks`; `hooks.NewSlackHook(notifier, level)` con `slack.NewNotifier`; `GetMetrics` vía `MetricsGetter`/`*LoggerImpl`; `defer asyncLogger.Close()`; import `/v3`. Verificación: `grep -rnE 'logger := go_logs\.New\(|WithHook\(|NewSlackHook\("' README.md CLAUDE.md docs/wiki --include='*.md'` vacío.
-- **README**: badge del sitio / enlace "Documentación completa: https://drossan.github.io/go_logs/"; sección "Instalación" con `go get github.com/drossan/go_logs/v3@v3.1.0`; nota "las versiones v3.0.x no eran instalables con módulos Go (faltaba el sufijo /v3); usa v3.1.0 o superior"; sección Slack con `SetNotifier` + `go_logs/v3/slack`; tabla de rendimiento sustituida por los números medidos en la tarea 04 (benchmark end-to-end) y en la 03 (filtrado), con la fecha y la máquina; changelog: una sola entrada `### v3.1.0` (fecha) que lista lo de este plan y una subentrada "Historia previa (publicada como v3.0.0-v3.0.4, no instalable)" que absorbe las actuales secciones v3.1-v3.5; eliminar "v3.5 (Actual)".
+- **README**: badge del sitio / enlace "Documentación completa: https://drossan.github.io/go_logs/"; sección "Instalación" con `go get github.com/drossan/go_logs/v3@v3.1.0`; nota "las versiones v3.0.x no eran instalables con módulos Go (faltaba el sufijo /v3); usa v3.1.0 o superior"; sección Slack con `SetNotifier` + `go_logs/slack/v3`; tabla de rendimiento sustituida por los números medidos en la tarea 04 (benchmark end-to-end) y en la 03 (filtrado), con la fecha y la máquina; changelog: una sola entrada `### v3.1.0` (fecha) que lista lo de este plan y una subentrada "Historia previa (publicada como v3.0.0-v3.0.4, no instalable)" que absorbe las actuales secciones v3.1-v3.5; eliminar "v3.5 (Actual)".
 - **`CLAUDE.md`**: eliminar la sección "Arquitectura Híbrida" y el segundo árbol duplicado; nueva estructura real: un módulo `github.com/drossan/go_logs/v3` con subpaquetes `async/`, `hooks/`, `http/`, `otel/`, `signal/`, `domain/` y el submódulo `slack/`; ejemplos con import `/v3`; tabla de rendimiento con los números de este plan; sección "Comandos comunes" con `go test -race ./...`, `(cd slack && go test ./...)`, `pnpm --dir website build`; notas de `Init()` tolerante, `Sync()` real, `Flusher`, nivel compartido, `SetNotifier`, `Close()` de async.
 - **`MIGRATION.md`**: comprobar que la sección Slack (tarea 06) y el import `/v3` están; añadir "v3.0.x → v3.1.0" con los cambios de comportamiento: `Init()` ya no termina el proceso; nivel Info por defecto en v2; `Sync()` hace flush + fsync; `SetLevel` afecta a hijos; `async.Close()` en hijos es no-op.
 - **`.goreleaser.yaml`**: `version: 2` en la primera clave; `changelog.skip` → `changelog.disable: false`; mantener `builds: [{skip: true}]`. Validar con `goreleaser check` si está instalado (`brew install goreleaser`); si no, revisar contra `goreleaser.com/deprecations`. Documentar en el session log qué se validó.
 - **Verificación e2e** (script reproducible en `scripts/e2e-consumer.sh`, opcional pero recomendado):
-  1. Módulo temporal en `/tmp` con `replace github.com/drossan/go_logs/v3 => <ruta>` y `replace github.com/drossan/go_logs/v3/slack => <ruta>/slack`.
-  2. `main.go` que importa `v3`, `v3/async`, `v3/slack`; llama a `go_logs.InfoLog("hola v2")`, crea un `New()` con JSON, un hijo con `With`, un async con `Close`, y `SetNotifier(nil)`.
+  1. Módulo temporal en `/tmp` con `replace github.com/drossan/go_logs/v3 => <ruta>` y `replace github.com/drossan/go_logs/slack/v3 => <ruta>/slack`.
+  2. `main.go` que importa `v3`, `v3/async`, `slack/v3`; llama a `go_logs.InfoLog("hola v2")`, crea un `New()` con JSON, un hijo con `With`, un async con `Close`, y `SetNotifier(nil)`.
   3. Ejecutar **sin variables de entorno** (`env -i PATH=$PATH HOME=$HOME go run .`): exit 0 y salida que contiene "hola v2".
   4. `go list -deps .` de un módulo que solo importa `v3`: sin `slack-go`.
   5. Anotar en el session log que esto prueba compilación e integración, no instalabilidad desde el proxy (eso va en la checklist post-tag).
@@ -88,7 +88,7 @@ Feature: La documentación compila y cuenta la verdad
 Feature: Un consumidor externo usa la librería sin configuración
 
   Scenario: Binario mínimo sin variables de entorno
-    Given un módulo temporal que importa v3, v3/async y v3/slack vía replace
+    Given un módulo temporal que importa v3, v3/async y slack/v3 vía replace
     When se ejecuta con el entorno vacío
     Then termina con código 0
     And la salida contiene "hola v2"

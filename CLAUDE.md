@@ -47,11 +47,11 @@ go_logs/
 ├── domain/                # Interfaces del dominio (v2 legacy)
 │   └── notification.go    # Interfaz Notifier
 │
-├── adapters/              # Adaptadores externos (v2 legacy)
-│   └── slack_notifier.go  # SlackNotifier
+├── hooks/                 # Hooks v3
+│   └── slack_hook.go      # SlackHook (v3 moderno)
 │
-└── hooks/                 # Hooks v3
-    └── slack_hook.go      # SlackHook (v3 moderno)
+└── slack/                 # ÚNICO submódulo: github.com/drossan/go_logs/slack/v3 (go.mod propio)
+    └── notifier.go        # slack.Notifier (NewNotifier, NewNotifierFromEnv)
 ```
 
 ### Capas Principales
@@ -75,10 +75,10 @@ go_logs/
 ├── api.go                 # API v2 (backward compatible)
 ├── domain/                # Interfaces del dominio
 │   └── notification.go    # Interfaz Notifier (v2 legacy)
-├── adapters/              # Adaptadores externos
-│   └── slack_notifier.go  # SlackNotifier (v2 legacy)
-└── hooks/                 # Hooks v3
-    └── slack_hook.go      # SlackHook (v3 moderno)
+├── hooks/                 # Hooks v3
+│   └── slack_hook.go      # SlackHook (v3 moderno)
+└── slack/                 # Submódulo github.com/drossan/go_logs/slack/v3
+    └── notifier.go        # slack.Notifier
 ```
 
 ### Patrones Arquitectónicos
@@ -86,7 +86,7 @@ go_logs/
 1. **Dependency Inversion**: `LoggerImpl` depende de interfaces (`Formatter`, `Hook`), no de implementaciones
 2. **Option Pattern**: Configuración flexible con `New(WithLevel(...), WithFormatter(...))`
 3. **Interface Segregation**: Interfaces pequeñas y enfocadas (`Logger`, `Formatter`, `Hook`)
-4. **Zero Dependencies**: Solo usa `fatih/color` y `slack-go/slack` (ya existentes)
+4. **Zero Dependencies**: el core solo usa `fatih/color`. `slack-go/slack` vive en el submódulo `slack/` (`go list -deps ./ | grep slack-go` vacío en la raíz)
 
 ## API v3 vs v2
 
@@ -340,11 +340,15 @@ Opciones:
 - `logs.go`: Implementación v2 legacy
 - `save.go`: Guardar a archivo v2
 - `config.go`: Configuración compartida
-- `adapters/slack_notifier.go`: SlackNotifier v2
-- `domain/notification.go`: Interfaz Notifier v2
+- `domain/notification.go`: Interfaz Notifier v2 (la implementa `slack.Notifier`; se registra con `SetNotifier`)
 
 ### Archivos v3
 - `hooks/slack_hook.go`: SlackHook v3
+
+### Slack (submódulo `slack/`)
+
+- Módulo `github.com/drossan/go_logs/slack/v3` (el sufijo `/vN` va al **final** de la ruta: `.../v3/slack` no admitiría versiones v3). `go.mod` con `require github.com/drossan/go_logs/v3 v3.1.0` + `replace => ../`; tag de release `slack/v3.1.0`. Tests: `cd slack && go test -race ./...` (el `./...` de la raíz no lo incluye).
+- API v2: `go_logs.SetNotifier(n domain.Notifier)` (nil desactiva, protegido por `notifierMu`). Con `NOTIFICATIONS_SLACK_ENABLED=1` y sin notificador, aviso por `warnOutput` una sola vez por proceso (`sync.Once` que `SetNotifier` no re-arma). Los errores del notificador se ignoran. `Init()` ya no lee `SLACK_TOKEN`/`SLACK_CHANNEL_ID`: lo hace `slack.NewNotifierFromEnv()`.
 
 ## Testing
 

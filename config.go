@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/drossan/go_logs/v3/adapters"
+	"github.com/drossan/go_logs/v3/domain"
 )
 
 var isInit bool
@@ -39,7 +39,14 @@ var (
 	notificationSettingsMutex sync.RWMutex
 )
 
-var notifier *adapters.SlackNotifier
+// notifier is the notifier registered with SetNotifier (nil = none), guarded by
+// notifierMu. missingNotifierWarnOnce makes the "no notifier" warning fire at
+// most once per process; SetNotifier never re-arms it.
+var (
+	notifier                domain.Notifier
+	notifierMu              sync.RWMutex
+	missingNotifierWarnOnce sync.Once
+)
 
 // Issue #9 Fix: Persistent file with buffering for performance
 var (
@@ -73,21 +80,21 @@ var useLegacySystem bool
 // Init initializes the go_logs package with configuration from environment variables.
 //
 // This function must be called before using any logging functions. It reads configuration
-// from environment variables and sets up file logging and Slack notifications if enabled.
+// from environment variables and sets up file logging and notification settings.
 //
 // Environment Variables:
 //   - LOG_LEVEL: Logging threshold (trace, debug, info, warn, error, fatal, silent; default: info)
 //   - SAVE_LOG_FILE: Enable file logging (0 or 1, default: 0)
 //   - LOG_FILE_NAME: Name of the log file (default: "log.txt")
 //   - LOG_FILE_PATH: Directory path for log files (default: current directory)
-//   - NOTIFICATIONS_SLACK_ENABLED: Enable Slack notifications (0 or 1, default: 0)
-//   - NOTIFICATION_FATAL_LOG: Send fatal logs to Slack (0 or 1)
-//   - NOTIFICATION_ERROR_LOG: Send error logs to Slack (0 or 1)
-//   - NOTIFICATION_WARNING_LOG: Send warning logs to Slack (0 or 1)
-//   - NOTIFICATION_INFO_LOG: Send info logs to Slack (0 or 1)
-//   - NOTIFICATION_SUCCESS_LOG: Send success logs to Slack (0 or 1)
-//   - SLACK_TOKEN: Slack bot token for notifications
-//   - SLACK_CHANNEL_ID: Slack channel ID for notifications
+//   - NOTIFICATIONS_SLACK_ENABLED: Send notifications through the notifier registered
+//     with SetNotifier (0 or 1, default: 0). Init does not build a notifier: register
+//     one, e.g. from github.com/drossan/go_logs/slack/v3
+//   - NOTIFICATION_FATAL_LOG: Notify fatal logs (0 or 1)
+//   - NOTIFICATION_ERROR_LOG: Notify error logs (0 or 1)
+//   - NOTIFICATION_WARNING_LOG: Notify warning logs (0 or 1)
+//   - NOTIFICATION_INFO_LOG: Notify info logs (0 or 1)
+//   - NOTIFICATION_SUCCESS_LOG: Notify success logs (0 or 1)
 //
 // Example:
 //
@@ -125,10 +132,6 @@ func Init() {
 	loadNotificationsConfig()
 
 	notificationsEnabled = envBool("NOTIFICATIONS_SLACK_ENABLED", false)
-
-	if notificationsEnabled {
-		loadSlackConfig()
-	}
 
 	loadLogLevel()
 }
@@ -276,14 +279,45 @@ func getNotificationSettings(level string) bool {
 	return false
 }
 
-func loadSlackConfig() {
-	// Issue #7 Fix: Handle error from NewSlackNotifier
-	var err error
-	notifier, err = adapters.NewSlackNotifier()
-	if err != nil {
-		// Log warning but don't fail - notifications will be disabled
-		log.Printf("Warning: Slack notifications disabled: %v", err)
+// SetNotifier registra el notificador usado por la API v2 (ErrorLog, FatalLog…)
+// cuando NOTIFICATIONS_SLACK_ENABLED está activo. nil lo desactiva. Los
+// notificadores concretos viven fuera del core (p. ej. go_logs/slack/v3).
+//
+// It is safe to call concurrently with logging. If notifications are enabled and
+// no notifier is registered when a message must be sent, a warning is written to
+// stderr once per process and logging continues; errors returned by the notifier
+// are ignored so they never interrupt logging.
+//
+// Example:
+//
+//	n, err := slack.NewNotifierFromEnv() // github.com/drossan/go_logs/slack/v3
+//	if err == nil {
+//	    go_logs.SetNotifier(n)
+//	}
+func SetNotifier(n domain.Notifier) {
+	notifierMu.Lock()
+	notifier = n
+	notifierMu.Unlock()
+}
+
+// currentNotifier returns the notifier registered with SetNotifier, or nil.
+func currentNotifier() domain.Notifier {
+	notifierMu.RLock()
+	defer notifierMu.RUnlock()
+	return notifier
+}
+
+// sendNotification forwards message to the registered notifier. Without one it
+// warns once per process through warnOutput and returns.
+func sendNotification(message string) {
+	n := currentNotifier()
+	if n == nil {
+		missingNotifierWarnOnce.Do(func() {
+			fmt.Fprintln(warnOutput, "go_logs: NOTIFICATIONS_SLACK_ENABLED activo pero no hay notificador; llama a go_logs.SetNotifier (ver go_logs/slack/v3)")
+		})
+		return
 	}
+	_ = n.SendNotification(message)
 }
 
 // initPersistentLogFile opens the persistent log file with buffering (called once
@@ -380,17 +414,9 @@ func Close() {
 	closeLogFile(nil)
 }
 
-// IsNotifierEnabled returns whether Slack notifications are enabled.
-//
-// This function provides a way to check if Slack notifications have been successfully
-// initialized and are available. It returns false if:
-//   - Slack notifications are disabled (NOTIFICATIONS_SLACK_ENABLED=0)
-//   - Slack credentials are missing (SLACK_TOKEN or SLACK_CHANNEL_ID not set)
-//   - The notifier failed to initialize
-//
-// Returns:
-//
-//	true if Slack notifications are enabled and available, false otherwise
+// IsNotifierEnabled reports whether v2 notifications will be sent: it returns
+// true only if a notifier is registered with SetNotifier and
+// NOTIFICATIONS_SLACK_ENABLED was active when Init ran.
 //
 // Example:
 //
@@ -400,8 +426,5 @@ func Close() {
 //	    go_logs.WarningLog("Slack notifications are not configured")
 //	}
 func IsNotifierEnabled() bool {
-	if notifier == nil {
-		return false
-	}
-	return notifier.IsEnabled()
+	return currentNotifier() != nil && notificationsEnabled
 }

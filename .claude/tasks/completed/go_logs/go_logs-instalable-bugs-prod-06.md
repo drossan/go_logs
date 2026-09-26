@@ -2,11 +2,11 @@
 id: go_logs-instalable-bugs-prod-06
 package: go_logs
 plan: instalable-bugs-prod
-status: pending
+status: done
 priority: 1
 depends_on: [go_logs-instalable-bugs-prod-01, go_logs-instalable-bugs-prod-02]
 estimate: 3h
-actual:
+actual: 0.2h
 created: 2026-09-26
 updated: 2026-09-26
 ---
@@ -18,6 +18,8 @@ updated: 2026-09-26
 `adapters/slack_notifier.go` importa `slack-go/slack`, que arrastra `gorilla/websocket`, y `config.go:5` importa `adapters`: cualquier consumidor que solo quiera loguear por consola se lleva un cliente de Slack en su árbol de dependencias y en su superficie de CVE, contradiciendo el "zero dependencies" del README. Hoy no existe ningún consumidor instalable de v3, así que es la única ventana en la que sacarlo no rompe a nadie (B2 del design-review). El core conservará la capacidad de notificar vía una interfaz inyectada. Ver plan, Objetivo 2.
 
 ## Spec
+
+> **Desviación aprobada por el owner (2026-09-26, durante la ejecución):** la ruta del módulo es `github.com/drossan/go_logs/slack/v3` (tag `slack/v3.1.0`), no `github.com/drossan/go_logs/v3/slack`: con esa ruta Go rechaza `v3.1.0` (`should be v0 or v1, not v3`). La directiva `go` de `slack/go.mod` es `1.27.0`, no `1.21`: la impone el `replace ../`. Ver el session log y el Registro de cambios del plan.
 
 - Crear `slack/` como submódulo:
   - `slack/go.mod`: `module github.com/drossan/go_logs/v3/slack`, `go 1.21`, `require github.com/drossan/go_logs/v3 v3.1.0` **y** `replace github.com/drossan/go_logs/v3 => ../` (patrón OpenTelemetry: el `replace` sirve al desarrollo local y se ignora en consumidores; el `require` real se resuelve tras el tag `v3.1.0`). `require github.com/slack-go/slack v0.12.5`. `go mod tidy` dentro de `slack/`.
@@ -162,14 +164,14 @@ Feature: Submódulo slack
 
 ## Definition of Done
 
-- [ ] Tests escritos ANTES de la implementación (TDD) — Red → Green → Refactor
-- [ ] Cada escenario Gherkin tiene al menos un test (camino feliz + bordes/errores)
-- [ ] Todos los tests en verde: `go test -race ./...` en la raíz y `(cd slack && go test -race ./...)`
-- [ ] Spec cumplida; lo declarado en `Provides` queda realmente disponible para las tareas dependientes
-- [ ] Lint / format / typecheck OK: `gofmt -l` sin salida en raíz y `slack/`; `go vet ./...` en ambos
-- [ ] Gate de `fact-checker` superado — afirmaciones de la sesión verificadas (INCORRECTO bloquea; NO VERIFICABLE = aviso a reconocer), antes de commit/resumen  · no-negociable
-- [ ] Documentación actualizada — tres capas:
-  - [ ] **godoc en el código** — `SetNotifier`, `slack.Notifier`, `NewNotifier`, `NewNotifierFromEnv`, package doc de `slack`
-  - [ ] **Doc técnica (contexto)** — `MIGRATION.md` ("Slack en v3.1"), `slack/README.md`, sección Slack del README raíz y CLAUDE.md (estructura: un módulo + `slack/`)
-  - [ ] **Histórico de la tarea** — session log en `.claude/context/go_logs/go_logs-instalable-bugs-prod-06.md`
-- [ ] Commit en la rama del plan: `go_logs-instalable-bugs-prod-06: <conventional commit>`
+- [x] Tests escritos ANTES de la implementación (TDD) — Red → Green → Refactor
+- [x] Cada escenario Gherkin tiene al menos un test (camino feliz + bordes/errores)
+- [x] Todos los tests en verde: `go test -race ./...` en la raíz y `(cd slack && go test -race ./...)`
+- [x] Spec cumplida; lo declarado en `Provides` queda realmente disponible para las tareas dependientes
+- [x] Lint / format / typecheck OK: `gofmt -l` sin salida en raíz y `slack/`; `go vet ./...` en ambos
+- [x] Gate de `fact-checker` superado — afirmaciones de la sesión verificadas (INCORRECTO bloquea; NO VERIFICABLE = aviso a reconocer), antes de commit/resumen  · no-negociable
+- [x] Documentación actualizada — tres capas:
+  - [x] **godoc en el código** — `SetNotifier`, `slack.Notifier`, `NewNotifier`, `NewNotifierFromEnv`, package doc de `slack`
+  - [x] **Doc técnica (contexto)** — `MIGRATION.md` ("Slack en v3.1"), `slack/README.md`, sección Slack del README raíz y CLAUDE.md (estructura: un módulo + `slack/`)
+  - [x] **Histórico de la tarea** — session log en `.claude/context/go_logs/go_logs-instalable-bugs-prod-06.md`
+- [x] Commit en la rama del plan: `go_logs-instalable-bugs-prod-06: <conventional commit>`

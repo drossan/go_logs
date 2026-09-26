@@ -25,7 +25,7 @@ Biblioteca de logging estructurado para Go con campos tipados, múltiples format
 - Archivo persistente con buffering
 - Notificaciones Slack configurables
 - Thread-safe con mutex
-- Cero dependencias externas (solo color y slack)
+- Cero dependencias externas en el core (solo `fatih/color`); Slack vive en el submódulo opcional `github.com/drossan/go_logs/slack/v3`
 
 ## Instalación
 
@@ -242,16 +242,36 @@ logger := go_logs.New(
 )
 ```
 
-### Slack Hook
+### Slack
+
+Slack vive fuera del core, en su propio módulo, para que quien solo loguea por consola no arrastre el cliente de Slack:
+
+```bash
+go get github.com/drossan/go_logs/slack/v3
+```
 
 ```go
-import "github.com/drossan/go_logs/v3/hooks"
-
-slackHook := hooks.NewSlackHook("xoxb-token", "C123456")
-logger := go_logs.New(
-    go_logs.WithHook(slackHook),
+import (
+    "github.com/drossan/go_logs/v3"
+    "github.com/drossan/go_logs/v3/hooks"
+    "github.com/drossan/go_logs/slack/v3"
 )
+
+notifier, err := slack.NewNotifier("xoxb-token", "C123456") // o slack.NewNotifierFromEnv()
+if err != nil {
+    // credenciales vacías: notifier queda deshabilitado (no envía nada)
+}
+
+// API v3: hook por nivel
+logger, _ := go_logs.New(
+    go_logs.WithHooks(hooks.NewSlackHook(notifier, go_logs.ErrorLevel)),
+)
+
+// API v2: ErrorLog, FatalLog… con NOTIFICATIONS_SLACK_ENABLED=1
+go_logs.SetNotifier(notifier)
 ```
+
+Ver [`slack/README.md`](slack/README.md) y la sección "Slack en v3.1" de [`MIGRATION.md`](MIGRATION.md).
 
 ### OpenTelemetry / OTLP Hook
 
@@ -499,7 +519,8 @@ LOG_FILE_PATH=/var/log
 LOG_MAX_SIZE=100            # MB antes de rotar
 LOG_MAX_BACKUPS=5           # Archivos backup a mantener
 
-# Slack
+# Slack (las lee slack.NewNotifierFromEnv del submódulo go_logs/slack/v3;
+# NOTIFICATIONS_SLACK_ENABLED=1 exige registrar el notificador con go_logs.SetNotifier)
 SLACK_TOKEN=xoxb-xxx
 SLACK_CHANNEL_ID=C123456
 
