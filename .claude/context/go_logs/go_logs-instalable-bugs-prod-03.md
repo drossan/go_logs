@@ -45,7 +45,7 @@
 
 **Docs actualizadas**: godoc (`logger.go`, `logger_impl.go`: `With`, `SetLevel`, `GetLevel`, `getLevel`, campo `level`); `README.md` § Child Loggers (copia de campos, claves duplicadas, nivel compartido + ejemplo); `CLAUDE.md` § Notas Importantes. Lo pide la DoD. El snippet `logger := go_logs.New(...)` del README sigue roto a propósito: lo corrige la tarea 10.
 
-**Ficheros**: `logger_impl.go`, `logger_test.go`, `logger.go`, `README.md`, `CLAUDE.md`, task file, plan, este log.
+**Ficheros**: `logger_impl.go`, `logger_test.go`, `logger.go`, `README.md`, `CLAUDE.md`, task file, plan, este log. Commit `464c835`: `go_logs-instalable-bugs-prod-03: fix(logger): With() copies fields, config under RLock, level shared by logger tree`.
 
 **Tiempo real**: ~0,3 h (22:49–23:05) frente a 2 h estimadas.
 
