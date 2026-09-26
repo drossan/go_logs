@@ -54,3 +54,35 @@
 ## 00:22 — Fact-checker
 
 - Subagente Sonnet (`models.fact-checker: sonnet`), 11 afirmaciones + paridad EN/ES del changelog: **12/12 VERIFICADO**, 0 INCORRECTO, 0 NO VERIFICABLE. Reprodujo por su cuenta el build, el fallo por dead link y el `ERR_PNPM_IGNORED_BUILDS` sin `pnpm-workspace.yaml` (en copias en `/tmp`), el typecheck, los greps, las fechas y diffs de los tags y la suite Go (gofmt/vet/test -race raíz y `slack/`, build Windows).
+
+## Push y CI
+
+- Commit `5f3dcdd` pusheado. Run `CI` https://github.com/drossan/go_logs/actions/runs/36276030336 → **success** (22:21:55Z → 22:22:17Z): gofmt, vet raíz/`slack/`, test -race raíz/`slack/`, cross-compile Windows ✓. El sitio no lo construye todavía ningún workflow (tarea 09).
+
+## Cierre
+
+**Resumen**: sitio VitePress bilingüe en `website/` (EN en `/`, ES en `/es/`, `base: '/go_logs/'`), con el estilo de sdk.griddo.io que pidió el owner y changelog en los dos idiomas. Contenido copiado del wiki con los snippets corregidos. `pnpm --dir website build` en verde, un enlace muerto rompe el build, y sin regresiones en Go.
+
+**Decisiones + porqué**
+- Changelog y estilo griddo: petición explícita del owner a mitad de tarea. Amplía el Spec ("no se redactan páginas nuevas", 14+14 páginas) y queda registrado en el plan. Solo se usa el tema por defecto y CSS, sin dependencias npm nuevas.
+- Changelog con la historia real de los tags en lugar de la del README ("v3.5 (Actual)" era falso). `v3.1.0` va como *unreleased* y solo cuenta lo que ya está hecho (tareas 01-08).
+- Se retiran `TraceLog`/`DebugLog`/`Tracef`/`Debugf` de la copia: el owner pidió verificar cada firma citada y esas no existen. El wiki lo corrige la tarea 10.
+- Se commitea `pnpm-workspace.yaml` (`allowBuilds: esbuild`): sin él, `pnpm install` falla en pnpm 11 y lo haría también en el CI de la tarea 09.
+- `srcExclude: ['README.md']`: el README del sitio es para contribuidores y no debe ser una página.
+- Desplegable de versión: v1.x no tiene sitio propio, así que enlaza a `tree/v1.2.5`.
+- Script de copia en `/tmp`, sin commitear: la copia es única. A partir de ahora el sitio es la fuente canónica y se edita a mano.
+
+**Verificaciones**: tablas de arriba y fact-checker 12/12. DoD completa. Mutation: no aplica (`stack.mutation-tool: none`).
+
+**Docs actualizadas**: `website/README.md` (desarrollo, estructura, declaración de fuente canónica, cómo añadir páginas); comentarios en `config.ts` (base, locales, dead links, versión, `srcExclude`) y `theme/`; `CLAUDE.md` (árbol con `website/` y subsección "Sitio de documentación"); plan (Registro de cambios); tarea 10 (lo heredado: alinear el changelog del README, v2 inexistentes y Slack en el wiki); este log.
+
+**Ficheros / commits**
+- `5f3dcdd`: `website/**` (config, theme, logo, 30 páginas, README, package.json, lockfile, pnpm-workspace.yaml), `.gitignore`, `CLAUDE.md`, plan, tarea 10, tarea 08 (→ active), este log.
+- Commit de cierre (`docs:`): tarea → `completed/`, casilla del plan, este log.
+
+**Tiempo real**: ~0,4 h (lectura desde ~00:00, arranque 00:06, cierre 00:23) frente a las 5 h estimadas. El wiki ya tenía corregidos casi todos los snippets desde las tareas 01/05.
+
+**Follow-ups**
+- Tarea 09: el workflow de Pages necesita pnpm 11 + Node 22 y usa el `pnpm-workspace.yaml` commiteado; `pnpm --dir website install --frozen-lockfile && pnpm --dir website build`; artefacto `website/.vitepress/dist`.
+- Tarea 10: ver la nota añadida a su Spec. Además, la tabla de rendimiento de las portadas (`index.md`) y `performance.md` repite las cifras antiguas (0,32 ns, 16M msg/s) que la tarea 10 regenera en `CLAUDE.md`/README: hay que llevarlas también al sitio.
+- Opcional, futuro: `/llms.txt` como sdk.griddo.io (necesitaría un plugin npm y por tanto aprobación del owner).

@@ -2,11 +2,11 @@
 id: go_logs-instalable-bugs-prod-08
 package: go_logs
 plan: instalable-bugs-prod
-status: active
+status: done
 priority: 2
 depends_on: [go_logs-instalable-bugs-prod-06]
 estimate: 5h
-actual:
+actual: 0.4h
 created: 2026-09-26
 updated: 2026-09-27
 ---
@@ -113,13 +113,13 @@ Feature: Sitio de documentación VitePress bilingüe
 
 ## Definition of Done
 
-- [ ] Verificación registrada en el session log: salida de `pnpm build`, recuentos y greps
-- [ ] Todos los tests en verde: `go test -race ./...` sigue en verde (esta tarea no toca Go)
-- [ ] Spec cumplida; lo declarado en `Provides` queda realmente disponible para las tareas dependientes
-- [ ] Lint / format / typecheck OK: `pnpm build` sin warnings de TypeScript en `config.ts`
-- [ ] Gate de `fact-checker` superado — afirmaciones de la sesión verificadas (INCORRECTO bloquea; NO VERIFICABLE = aviso a reconocer), antes de commit/resumen  · no-negociable
-- [ ] Documentación actualizada — tres capas:
-  - [ ] **Comentarios en `config.ts`** (locales, base, por qué no se ignoran dead links)
-  - [ ] **Doc técnica (contexto)** — `website/README.md`; CLAUDE.md menciona `website/` en la estructura
-  - [ ] **Histórico de la tarea** — session log en `.claude/context/go_logs/go_logs-instalable-bugs-prod-08.md`
-- [ ] Commit en la rama del plan: `go_logs-instalable-bugs-prod-08: docs: <descripción>`
+- [x] Verificación registrada en el session log: salida de `pnpm build`, recuentos y greps
+- [x] Todos los tests en verde: `go test -race ./...` sigue en verde (esta tarea no toca Go)
+- [x] Spec cumplida; lo declarado en `Provides` queda realmente disponible para las tareas dependientes
+- [x] Lint / format / typecheck OK: `pnpm build` sin warnings de TypeScript en `config.ts`
+- [x] Gate de `fact-checker` superado — afirmaciones de la sesión verificadas (INCORRECTO bloquea; NO VERIFICABLE = aviso a reconocer), antes de commit/resumen  · no-negociable
+- [x] Documentación actualizada — tres capas:
+  - [x] **Comentarios en `config.ts`** (locales, base, por qué no se ignoran dead links)
+  - [x] **Doc técnica (contexto)** — `website/README.md`; CLAUDE.md menciona `website/` en la estructura
+  - [x] **Histórico de la tarea** — session log en `.claude/context/go_logs/go_logs-instalable-bugs-prod-08.md`
+- [x] Commit en la rama del plan: `go_logs-instalable-bugs-prod-08: docs: <descripción>`
