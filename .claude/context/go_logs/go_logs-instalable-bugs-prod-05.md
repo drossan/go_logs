@@ -50,7 +50,7 @@
 
 **Docs actualizadas**: godoc del paquete (el ejemplo usa `defer Close()`), `core`, `Logger`, `Wrap`, `WrapWithConfig`, `With`, `Sync`, `Close`, `Fatal` y los helpers no exportados. `README.md`, `docs/wiki/Optional-Modules.md` y `-es.md`: ejemplo con `defer asyncLogger.Close()` y nota sobre hijos, `Close()` y `Sync()` (lo pide la DoD). `CLAUDE.md` § Async: mismo ejemplo y descripción del `core` compartido (el patrón cambia, así que se documenta en el mismo cambio, como pide el HOW-TO).
 
-**Ficheros**: `async/async.go`, `async/async_test.go`, `README.md`, `CLAUDE.md`, `docs/wiki/Optional-Modules.md`, `docs/wiki/Optional-Modules-es.md`, task file, plan, este log.
+**Ficheros**: `async/async.go`, `async/async_test.go`, `README.md`, `CLAUDE.md`, `docs/wiki/Optional-Modules.md`, `docs/wiki/Optional-Modules-es.md`, task file, plan, este log.  Commit `20b762a`: `go_logs-instalable-bugs-prod-05: fix(async): shared core between parent and children, idempotent Close that is a no-op on children`.
 
 **Tiempo real**: ~0,4 h (23:15–23:22 más la espera del fact-checker; horas intermedias aproximadas) frente a 2 h estimadas.
 
