@@ -73,7 +73,7 @@ http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
 Non-blocking logging for high-throughput applications:
 
 ```go
-import "github.com/drossan/go_logs/async"
+import "github.com/drossan/go_logs/v3/async"
 
 // Create base sync logger
 syncLogger, _ := go_logs.New(go_logs.WithLevel(go_logs.InfoLevel))
@@ -119,7 +119,7 @@ asyncLogger := async.WrapWithConfig(syncLogger, async.Config{
 Change log levels at runtime via HTTP endpoints:
 
 ```go
-import httplogs "github.com/drossan/go_logs/http"
+import httplogs "github.com/drossan/go_logs/v3/http"
 
 logger, _ := go_logs.New(go_logs.WithLevel(go_logs.InfoLevel))
 
@@ -177,7 +177,7 @@ curl -H "Authorization: Bearer secret-token" http://localhost:8080/debug/level/m
 Rotate logs when receiving system signals:
 
 ```go
-import "github.com/drossan/go_logs/signal"
+import "github.com/drossan/go_logs/v3/signal"
 
 writer, _ := go_logs.NewRotatingFileWriter("/var/log/app.log", 100, 5)
 logger, _ := go_logs.New(go_logs.WithOutput(writer))

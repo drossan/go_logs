@@ -75,7 +75,7 @@ Use v3 API from the start:
 package main
 
 import (
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func main() {
@@ -115,7 +115,7 @@ go_logs.Errorf("Error: %v", err)
 
 ```bash
 # Update to v3
-go get -u github.com/drossan/go_logs@v3
+go get -u github.com/drossan/go_logs/v3@latest
 go mod tidy
 ```
 
@@ -448,7 +448,7 @@ import (
     "net/http"
     "os"
 
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func main() {
@@ -497,7 +497,7 @@ package main
 import (
     "os"
 
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func main() {
@@ -534,7 +534,7 @@ func main() {
 ```go
 package main
 
-import "github.com/drossan/go_logs"
+import "github.com/drossan/go_logs/v3"
 
 func handleRequest(userID int, username string) {
     go_logs.Infof("User %s (ID: %d) logged in", username, userID)
@@ -552,7 +552,7 @@ func handleRequest(userID int, username string) {
 ```go
 package main
 
-import "github.com/drossan/go_logs"
+import "github.com/drossan/go_logs/v3"
 
 func handleRequest(userID int, username string) {
     // No code changes - works as-is
@@ -571,7 +571,7 @@ func handleRequest(userID int, username string) {
 ```go
 package main
 
-import "github.com/drossan/go_logs"
+import "github.com/drossan/go_logs/v3"
 
 var logger, _ = go_logs.New(
     go_logs.WithLevel(go_logs.InfoLevel),
@@ -601,7 +601,7 @@ func handleRequest(userID int, username string) {
 ```go
 package main
 
-import "github.com/drossan/go_logs"
+import "github.com/drossan/go_logs/v3"
 
 var logger, _ = go_logs.New(
     go_logs.WithLevel(go_logs.InfoLevel),
@@ -841,7 +841,7 @@ Rotation happens automatically when file size exceeds LOG_MAX_SIZE.
 
 For issues, questions, or contributions:
 - GitHub Issues: https://github.com/drossan/go_logs/issues
-- Documentation: https://pkg.go.dev/github.com/drossan/go_logs
+- Documentation: https://pkg.go.dev/github.com/drossan/go_logs/v3
 - Migration examples: See `example_v3_test.go`
 
 ---

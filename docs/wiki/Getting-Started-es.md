@@ -6,7 +6,7 @@ Esta guia te ayudara a comenzar con go_logs en solo unos minutos.
 
 ## Requisitos Previos
 
-- **Go 1.21+** - La biblioteca usa caracteristicas modernas de Go
+- **Go 1.27+** - La biblioteca usa caracteristicas modernas de Go
 - Un proyecto con Go modules habilitado
 
 ## Inicio Rapido
@@ -14,7 +14,7 @@ Esta guia te ayudara a comenzar con go_logs en solo unos minutos.
 ### 1. Instalar el Paquete
 
 ```bash
-go get github.com/drossan/go_logs@latest
+go get github.com/drossan/go_logs/v3@latest
 ```
 
 ### 2. Crear Tu Primer Logger
@@ -26,7 +26,7 @@ package main
 
 import (
     "os"
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func main() {
@@ -62,7 +62,7 @@ package main
 import (
     "os"
     "errors"
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func main() {
@@ -101,7 +101,7 @@ Los child loggers heredan campos de su padre, reduciendo la repeticion:
 package main
 
 import (
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func main() {
@@ -137,7 +137,7 @@ package main
 
 import (
     "os"
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func main() {
@@ -167,7 +167,7 @@ Para logging persistente con rotacion automatica:
 package main
 
 import (
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func main() {
@@ -195,7 +195,7 @@ package main
 
 import (
     "context"
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func main() {
@@ -243,7 +243,7 @@ export LOG_MAX_BACKUPS=5
 package main
 
 import (
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func main() {
@@ -268,7 +268,7 @@ import (
     "os"
     "time"
 
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
     "github.com/google/uuid"
 )
 

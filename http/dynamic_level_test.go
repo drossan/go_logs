@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	go_logs "github.com/drossan/go_logs"
+	go_logs "github.com/drossan/go_logs/v3"
 )
 
 // TestDynamicLevelHandler_GetLevel tests getting the current log level

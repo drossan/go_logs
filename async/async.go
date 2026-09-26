@@ -27,7 +27,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	go_logs "github.com/drossan/go_logs"
+	go_logs "github.com/drossan/go_logs/v3"
 )
 
 // Config holds configuration for the async logger.

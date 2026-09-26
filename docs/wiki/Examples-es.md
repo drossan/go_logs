@@ -26,7 +26,7 @@ package main
 
 import (
     "os"
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func main() {
@@ -52,7 +52,7 @@ package main
 import (
     "errors"
     "os"
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func main() {
@@ -103,7 +103,7 @@ package main
 import (
     "os"
     "time"
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func main() {
@@ -141,7 +141,7 @@ package main
 
 import (
     "os"
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func main() {
@@ -182,7 +182,7 @@ import (
     "os"
     "time"
 
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
     "github.com/google/uuid"
 )
 
@@ -284,7 +284,7 @@ package logging
 
 import (
     "os"
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 var baseLogger go_logs.Logger
@@ -367,7 +367,7 @@ import (
     "bytes"
     "testing"
 
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func TestAlgo(t *testing.T) {
@@ -399,7 +399,7 @@ import (
     "bytes"
     "testing"
 
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 // TestLogger crea un logger que captura salida para testing

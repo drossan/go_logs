@@ -2,11 +2,12 @@ package signal
 
 import (
 	"os"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
 
-	go_logs "github.com/drossan/go_logs"
+	go_logs "github.com/drossan/go_logs/v3"
 )
 
 // Ensure os.Signal is used
@@ -97,13 +98,7 @@ func TestSIGHUPHandler_CustomSignals(t *testing.T) {
 
 // TestSIGHUPHandler_MultipleRotations tests multiple signal triggers
 func TestSIGHUPHandler_MultipleRotations(t *testing.T) {
-	count := 0
-	rotator := &mockRotator{
-		rotateFunc: func() error {
-			count++
-			return nil
-		},
-	}
+	rotator := &mockRotator{}
 
 	handler := NewSIGHUPHandler(rotator)
 	defer handler.Stop()
@@ -119,8 +114,8 @@ func TestSIGHUPHandler_MultipleRotations(t *testing.T) {
 	// Wait for processing
 	time.Sleep(100 * time.Millisecond)
 
-	if count < 3 {
-		t.Errorf("Expected at least 3 rotations, got %d", count)
+	if got := rotator.Calls(); got != 3 {
+		t.Errorf("Expected 3 rotations, got %d", got)
 	}
 }
 
@@ -233,14 +228,29 @@ func TestWrapRotator(t *testing.T) {
 	}
 }
 
-// mockRotator is a mock implementation of Rotator for testing
+// mockRotator is a mock implementation of Rotator for testing.
+// It counts Rotate calls under a mutex because Rotate runs on the handler's
+// goroutine while the test reads the counter.
 type mockRotator struct {
 	rotateFunc func() error
+
+	mu    sync.Mutex
+	calls int
 }
 
 func (m *mockRotator) Rotate() error {
+	m.mu.Lock()
+	m.calls++
+	m.mu.Unlock()
 	if m.rotateFunc != nil {
 		return m.rotateFunc()
 	}
 	return nil
+}
+
+// Calls returns how many times Rotate has been invoked.
+func (m *mockRotator) Calls() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.calls
 }

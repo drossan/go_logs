@@ -1,6 +1,6 @@
 # Go_Logs v3 - Biblioteca de Logging Moderna para Go
 
-[![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://pkg.go.dev/github.com/drossan/go_logs)
+[![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://pkg.go.dev/github.com/drossan/go_logs/v3)
 [![Go Report Card](https://goreportcard.com/badge/github.com/drossan/go_logs)](https://goreportcard.com/report/github.com/drossan/go_logs)
 
 Biblioteca de logging estructurado para Go con campos tipados, múltiples formatters (Text/JSON), child loggers, context propagation, sistema de hooks extensible, y rotación de archivos. **100% backward compatible con v2**.
@@ -30,7 +30,7 @@ Biblioteca de logging estructurado para Go con campos tipados, múltiples format
 ## Instalación
 
 ```bash
-go get github.com/drossan/go_logs@v3
+go get github.com/drossan/go_logs/v3@latest
 ```
 
 ## Inicio Rápido
@@ -42,7 +42,7 @@ package main
 
 import (
     "os"
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func main() {
@@ -73,7 +73,7 @@ func main() {
 ```go
 package main
 
-import "github.com/drossan/go_logs"
+import "github.com/drossan/go_logs/v3"
 
 func main() {
     go_logs.Init()         // Opcional, auto-inicializa
@@ -201,7 +201,7 @@ Extrae automáticamente trace_id y span_id del contexto:
 ```go
 import (
     "context"
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func handler(ctx context.Context) {
@@ -235,7 +235,7 @@ logger := go_logs.New(
 ### Slack Hook
 
 ```go
-import "github.com/drossan/go_logs/hooks"
+import "github.com/drossan/go_logs/v3/hooks"
 
 slackHook := hooks.NewSlackHook("xoxb-token", "C123456")
 logger := go_logs.New(
@@ -248,7 +248,7 @@ logger := go_logs.New(
 Envía logs a un collector OpenTelemetry:
 
 ```go
-import "github.com/drossan/go_logs/otel"
+import "github.com/drossan/go_logs/v3/otel"
 
 // Hook simple
 otelHook := otel.NewOTLPHook("http://localhost:4318/v1/logs")
@@ -274,7 +274,7 @@ hook := otel.NewOTLPHookWithExporter(exporter, go_logs.InfoLevel)
 Envía logs al syslog local o remoto:
 
 ```go
-import "github.com/drossan/go_logs/hooks"
+import "github.com/drossan/go_logs/v3/hooks"
 
 // Syslog local
 syslogHook, _ := hooks.NewSyslogHook("myapp")
@@ -387,7 +387,7 @@ metrics.Reset()
 Logging non-blocking para alta carga:
 
 ```go
-import "github.com/drossan/go_logs/async"
+import "github.com/drossan/go_logs/v3/async"
 
 // Crear logger síncrono base
 syncLogger, _ := go_logs.New(go_logs.WithLevel(go_logs.InfoLevel))
@@ -414,7 +414,7 @@ childLogger := asyncLogger.With(go_logs.String("request_id", "abc-123"))
 Cambiar nivel de log en runtime via HTTP:
 
 ```go
-import httplogs "github.com/drossan/go_logs/http"
+import httplogs "github.com/drossan/go_logs/v3/http"
 
 logger, _ := go_logs.New(go_logs.WithLevel(go_logs.InfoLevel))
 
@@ -438,7 +438,7 @@ http.Handle("/debug/", handler)
 Rotación de logs al recibir señal del sistema:
 
 ```go
-import "github.com/drossan/go_logs/signal"
+import "github.com/drossan/go_logs/v3/signal"
 
 writer, _ := go_logs.NewRotatingFileWriter("/var/log/app.log", 100, 5)
 logger, _ := go_logs.New(go_logs.WithOutput(writer))
@@ -755,7 +755,7 @@ GO111MODULE=on go tool cover -html=coverage.out
 - [MIGRATION.md](MIGRATION.md) - Guía de migración v2 → v3
 - [IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md) - Resumen técnico
 - [CLAUDE.md](CLAUDE.md) - Guía para Claude Code
-- [GoDoc](https://pkg.go.dev/github.com/drossan/go_logs) - Referencia de API
+- [GoDoc](https://pkg.go.dev/github.com/drossan/go_logs/v3) - Referencia de API
 
 ## Changelog
 

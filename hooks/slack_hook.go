@@ -3,7 +3,7 @@ package hooks
 import (
 	"fmt"
 
-	"github.com/drossan/go_logs"
+	"github.com/drossan/go_logs/v3"
 )
 
 // SlackNotifier is an interface for sending notifications to Slack.

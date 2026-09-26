@@ -1,0 +1,125 @@
+---
+id: go_logs-instalable-bugs-prod
+package: go_logs
+status: active           # pending | active | completed | cancelled
+branch: plan/go_logs/instalable-bugs-prod
+issue:
+created: 2026-09-26
+updated: 2026-09-26
+---
+
+# go_logs instalable como v3, sin los bugs de producción y con sitio de documentación
+
+## Contexto y problema
+
+El análisis de `.claude/reports/analisis-completo-20260926.md` (2026-09-26) reprodujo con código que la librería hoy **no se puede instalar ni usar con seguridad**:
+
+- `go.mod` declara `module github.com/drossan/go_logs` sin sufijo `/v3` mientras las tags publicadas son `v3.0.x`. El proxy de Go solo expone `v1.0.0…v1.2.5`; `go get github.com/drossan/go_logs@v3` no resuelve. Los tags `v3.0.0…v3.0.4` quedarán inválidos para siempre bajo `/v3` (su `go.mod` no lleva sufijo): no hay nada que despublicar, solo documentarlo.
+- Los cinco submódulos (`async/`, `hooks/`, `http/`, `otel/`, `signal/`) llevan `require go_logs v0.0.0` + `replace => ../`. Un consumidor ignora el `replace`, así que tampoco son instalables. Ninguno importa nada externo: la separación no aporta nada.
+- `adapters/slack_notifier.go` (slack-go + gorilla/websocket) vive en el módulo raíz y `config.go:5` lo importa: todo consumidor del core arrastra un cliente de Slack. Hoy no hay ningún consumidor instalable de v3, así que es la única ventana gratis para sacarlo; después es un v4.
+- `vendor/` está trackeado (480 ficheros, 76 % del repo) aunque `.gitignore` lo excluye.
+- No existe `LICENSE` aunque README y wiki anuncian MIT.
+- `Init()` (`config.go:92-125`) hace `log.Fatalf` cuando `SAVE_LOG_FILE` o `NOTIFICATIONS_SLACK_ENABLED` están vacías (`strconv.ParseBool("")` falla). `save.go:10` auto-llama a `Init()`, así que un binario que solo hace `InfoLog("hola")` termina con `exit status 1`. Hay 7 `log.Fatalf` en `Init()`/`loadNotificationsConfig()` y uno más en `initPersistentLogFile()` (`config.go:299`). Además, con el entorno vacío `logLevel` queda en 0 y `getNotificationSettings()` (`config.go:264-270`) devuelve `false` para todo: sin el crash, la ruta v2 no escribiría nada.
+- `LoggerImpl.With()` (`logger_impl.go:256`) hace `append(l.fields, fields...)`: si el padre tiene capacidad sobrante, dos hijos comparten el array subyacente y el request A loga el `request_id` del request B. Es además una data race confirmada con `-race`. `With()` también lee `level/output/formatter/hooks` sin tomar `l.mu`, copia `level` por valor (así que `SetLevel` del padre, lo que hace `http.DynamicLevelHandler`, no afecta a hijos ya creados) y guarda un campo `parent` que nunca se lee.
+- `writeEntry()` (`logger_impl.go:355-358`) llama a `output.Sync()` por cada entrada. `RotatingFileWriter.Sync()` hace `bufio.Flush()` **+ `file.Sync()`** (fsync). Medido: ~260 msg/s a fichero, frente a 9M msg/s del writer crudo. Y `Logger.Sync()` (`logger_impl.go:291`) es un no-op documentado como "flushes buffered entries": con un `bufio.Writer` como output se pierden los últimos bytes al salir. `MultiWriter` implementa `Sync()` pero no `Flush()`; `SamplingWriter` no implementa ninguno.
+- `async.With()` (`async/async.go:230-243`) crea un hijo con su propio contador `pending` mientras el worker decrementa el del padre: `child.Sync()` retorna sin esperar y `parent.Sync()/Close()` esperan el timeout completo. Race confirmada en `async_test.go:218-220`. `Close()` hace `close(l.done)` sin `sync.Once`: pánico al repetir.
+- `caller.go:30-37` deriva el nombre de paquete del último segmento de ruta: con el módulo en `/v3` reporta `Package: "v3"` (`TestGetCaller` falla tras el rename). `hooks/syslog_hook.go` no compila en Windows (`log/syslog`); hoy no se nota porque `hooks` es módulo aparte.
+- `release.yaml` corre GoReleaser `latest` (v2) sobre un `.goreleaser.yaml` sin `version: 2` y con `changelog.skip`, clave eliminada en v2: el primer `git push --tags` saldrá en rojo.
+- El changelog del README anuncia "v3.5 (Actual)" con secciones v3.1-v3.5 mientras los tags paran en `v3.0.4`.
+- README y `docs/wiki/` tienen snippets que no compilan: `logger := go_logs.New(...)` (devuelve dos valores, 12 sitios), `WithHook` (no existe, es `WithHooks`), `hooks.NewSlackHook("tok","chan")` (firma real distinta), `logger.GetMetrics()` (no está en la interfaz `Logger`). `CLAUDE.md` describe una "arquitectura híbrida" de submódulos y una tabla de rendimiento que no se sostiene.
+- No hay ningún workflow que ejecute tests. No hay sitio de documentación propio; GitHub Pages no está activado.
+
+## Objetivos
+
+1. **Que `go get github.com/drossan/go_logs/v3@v3.1.0` funcione para cualquier consumidor** y cubra `async`, `hooks`, `http`, `otel` y `signal` como paquetes del mismo módulo.
+   - *Criterio de éxito*: `go list -m` devuelve `github.com/drossan/go_logs/v3`; `go test ./...` desde la raíz lista ocho paquetes (raíz, `adapters` hasta la tarea 06, `domain`, `async`, `hooks`, `http`, `otel`, `signal`); no queda ningún `go.mod` fuera de la raíz salvo `slack/go.mod` (tarea 06); `GOOS=windows go build ./...` compila; `TestGetCaller` pasa con `Package: "go_logs"` y un test nuevo cubre el strip de `/vN`; `vendor/` no está trackeado. **Nota**: la e2e con `replace` prueba que los import paths compilan, no la instalabilidad; esa la prueba `go list -m -versions` contra el proxy tras el tag.
+2. **Que el repo sea legalmente adoptable y el core no arrastre Slack**.
+   - *Criterio de éxito*: `LICENSE` MIT con titular `Daniel Rosselló` y años `2023-2026`; `go list -deps ./ | grep slack-go` vacío en la raíz; `slack/` es submódulo `github.com/drossan/go_logs/v3/slack` con `require .../v3 v3.1.0` real más `replace => ../` para desarrollo local (patrón OpenTelemetry); la API v2 conserva las notificaciones Slack vía `go_logs.SetNotifier` + `slack.NewNotifierFromEnv()`, documentado en `MIGRATION.md`.
+3. **Que la librería nunca termine el proceso del consumidor por configuración ausente o inválida, y que el quickstart v2 escriba algo**.
+   - *Criterio de éxito*: cero `log.Fatal*` en `config.go` (el `log.Fatal` de `FatalLog` en `logs.go:29` y el `os.Exit` de `Logger.Fatal` se conservan: son comportamiento documentado); `Init()` con el entorno vacío deja `saveLogFile=false`, `notificationsEnabled=false`, `notificationLog*=false` en silencio **y `logLevel = LevelInfo`**, de modo que `InfoLog("x")` sin env produce salida por consola; un valor inválido (p. ej. `SAVE_LOG_FILE=quizas`) cae al default y emite un aviso por stderr con nombre y valor; un fichero de log no abrible desactiva el guardado y avisa por stderr. Test de regresión por cada caso.
+4. **Que los loggers hijos nunca compartan memoria de campos y sí compartan el nivel**.
+   - *Criterio de éxito*: test con padre con capacidad sobrante y dos hijos donde cada uno emite solo sus campos; el mismo test con N goroutines pasa `-race`; `With()` copia el estado bajo `RLock`; el nivel vive en un `*atomic.Int32` (o equivalente) compartido por el árbol, de modo que `parent.SetLevel(Debug)` hace que un hijo creado antes emita `Debug`, y `child.SetLevel` afecta al padre; el campo `parent` desaparece; `getLevel()` deja de tomar `RWMutex`.
+5. **Que escribir a fichero no haga fsync por línea y que `Sync()` flushee de verdad**.
+   - *Criterio de éxito*: interfaz pública nombrada `Flusher interface{ Flush() error }` con godoc que dice que se invoca **por entrada**; `RotatingFileWriter`, `EnhancedRotatingFileWriter`, `MultiWriter` y `SamplingWriter` la implementan (los wrappers propagan a sus hijos que la implementen); `writeEntry` llama a `Flush()` solo si el output es `Flusher`, nunca a `Sync()`; test con writer espía: 100 logs → 0 llamadas a `Sync()`, contenido legible tras cada log; `logger.Sync()` → 1 llamada a `Sync()` del output; test con `bufio.Writer`: tras `logger.Sync()` el contenido está en el writer subyacente; `Logger.Sync()` ignora los errores `EINVAL`, `ENOTTY` y `EBADF` (por errno, no por identidad del writer: cubre stdout envuelto por `fatih/color` o `MultiWriter`) y propaga los demás; `TestWithMultiOutput_WritesToAll` y el resto de `file_writer_test.go` en verde; benchmark end-to-end a `RotatingFileWriter` por debajo de 10 µs/op como cifra informativa (el revisor midió 2,6 µs/op con este diseño).
+6. **Que `async` sea correcto con hijos y al cerrar**, y el repo cierre con `go test -race ./...` en verde.
+   - *Criterio de éxito*: `child.Sync()` espera a que el worker escriba la entrada del hijo; `parent.Sync()` retorna en cuanto no hay pendientes; `Close()` en la raíz es idempotente (`sync.Once`); **`Close()` en un hijo es no-op y devuelve `nil`**, documentado en godoc; `Fatal` del hijo incluye sus campos; `TestAsyncLogger_WithFields` pasa con `-race`; `go test -race ./...` desde la raíz en verde.
+7. **Que los cinco fixes queden protegidos por CI desde el primer PR.**
+   - *Criterio de éxito*: `.github/workflows/ci.yml` en push y PR: ubuntu, Go stable, `gofmt -l` (falla si hay salida en los ficheros del módulo, excluyendo `website/`), `go vet ./...`, `go test -race ./...` en la raíz y en `slack/`. Badge en el README.
+8. **Que exista un sitio de documentación publicado en GitHub Pages** y que ninguna de las tres fuentes de docs tenga snippets que no compilen.
+   - *Criterio de éxito*: `pnpm --dir website build` genera `website/.vitepress/dist` sin errores con las 14 páginas EN en la raíz del sitio y las 14 ES bajo `/es/`, nav y sidebar por idioma, búsqueda local, `base: '/go_logs/'`; los cuatro patrones rotos están corregidos en `website/`, `README.md` y `docs/wiki/` (verificación: `grep -rn 'logger := go_logs.New(\|WithHook(\|NewSlackHook("' README.md docs/wiki website --include=*.md` vacío, y `grep -rn 'logger.GetMetrics()'` solo aparece con `*LoggerImpl` o type assertion); todo import es `github.com/drossan/go_logs/v3`; `deploy-pages.yml` despliega en push a `main` cuando cambie `website/**`. Activar Pages con source "GitHub Actions" lo hace el owner.
+9. **Que la documentación técnica y el release cuenten la verdad.**
+   - *Criterio de éxito*: `CLAUDE.md` sin la sección "Arquitectura Híbrida" de submódulos, con la estructura real (un módulo + `slack/`) y la tabla de rendimiento regenerada con los números medidos en la tarea 04; changelog del README con una sola entrada `v3.1.0` que consolida las secciones v3.1-v3.5 como historia de `v3.0.x` y una nota de que `v3.0.x` nunca fue instalable bajo `/v3`; `.goreleaser.yaml` en sintaxis v2 (`version: 2`, `changelog.disable`) validado con `goreleaser check` si está disponible; checklist de release en el plan.
+
+## Alcance y fuera de alcance
+
+### Dentro del alcance
+- **Módulo**: `go.mod` raíz → `module github.com/drossan/go_logs/v3`; actualizar los 13 `.go` que importan `github.com/drossan/go_logs` o `.../adapters` y las rutas de import / `go get` en `README.md`, `MIGRATION.md`, `CLAUDE.md`, `docs/wiki/*.md`. Borrar los 5 `go.mod` de submódulos y el `go.work` local. `git rm -r --cached vendor`. `go mod tidy`. `//go:build !windows && !plan9` en `hooks/syslog_hook.go` (y su test). Strip del sufijo `/vN` en `GetCaller` (`caller.go`). Mock de `signal/signal_test.go` con mutex. `LICENSE` MIT.
+- **Slack fuera del core** (tarea 06): mover `adapters/slack_notifier.go` (+ test) a `slack/` como submódulo `github.com/drossan/go_logs/v3/slack` con `require github.com/drossan/go_logs/v3 v3.1.0` + `replace github.com/drossan/go_logs/v3 => ../`; en la raíz, `var notifier domain.Notifier` y función exportada `SetNotifier(n domain.Notifier)` (nil = desactivar); `loadSlackConfig()` desaparece de `config.go` y `NOTIFICATIONS_SLACK_ENABLED` pasa a documentarse como "requiere `SetNotifier`"; `slack.NewNotifierFromEnv()` conserva la lectura de `SLACK_TOKEN`/`SLACK_CHANNEL_ID`; `hooks/slack_hook.go` se queda en el core (solo depende de una interfaz); `MIGRATION.md` documenta el cambio para usuarios v2 con Slack. Borrar `adapters/`.
+- **`config.go`**: helper no exportado `envBool(key string, def bool) bool` (vacío → default en silencio; inválido → default + aviso a stderr con nombre y valor); sustituir los 7 `log.Fatalf`; `initPersistentLogFile()` sin `Fatalf`: aviso a stderr y `saveLogFile=false`; `loadLogLevel()` con default `LevelInfo` cuando `LOG_LEVEL` está vacío o es inválido. `gofmt`.
+- **`logger_impl.go`**: `With()` con `make`+`append` y copia bajo `l.mu.RLock()`; nivel compartido en atómico por árbol; borrar el campo `parent`; `writeEntry()` sin `Sync()` por entrada y con `Flush()` si el output es `Flusher`; `Sync()` que delega en el output si implementa `Sync() error`, ignorando `EINVAL`/`ENOTTY`/`EBADF` (`errors.Is` sobre `syscall.Errno`, portable con `//go:build` si hace falta). `gofmt`.
+- **Writers**: tipo `Flusher` en `formatter.go` o fichero propio; `Flush()` en `RotatingFileWriter`, `EnhancedRotatingFileWriter` (solo `bufio.Flush`), `MultiWriter` y `SamplingWriter` (propagación).
+- **`async/async.go`**: núcleo compartido por puntero (`buffer`, `pending`, `shutdown`, `done`, `config`, `syncLogger`, `closeOnce`, `isRoot`); `With()` copia solo `fields`; `Close()` idempotente y no-op en hijos; `Fatal` del hijo con `l.fields`.
+- **CI** (tarea 07): `.github/workflows/ci.yml` mínimo. Badge.
+- **Sitio** (tareas 08-09): VitePress en `website/` con pnpm, i18n (`root` inglés, `es` español), sidebar y nav por locale, búsqueda local, `base: '/go_logs/'`; contenido copiado de `docs/wiki/` corrigiendo import path y los cuatro patrones rotos; `website/README.md` declara al sitio como fuente canónica; `.gitignore` para `node_modules` y `.vitepress/dist|cache`; `deploy-pages.yml` con `actions/upload-pages-artifact` + `actions/deploy-pages`, push a `main` con `paths: website/**` y `workflow_dispatch`.
+- **Docs y release** (tarea 10): corregir los cuatro patrones rotos en `README.md` y `docs/wiki/` (sed + verificación grep); reescribir la arquitectura y la tabla de rendimiento de `CLAUDE.md`; nota sobre `/v3`, `Sync()`, `Init()` tolerante y `SetNotifier`; changelog consolidado `v3.1.0`; `.goreleaser.yaml` a sintaxis v2; enlace al sitio en el README; tests de regresión (TDD) por cada bug y benchmark end-to-end honesto en `benchmark_v3_test.go`.
+- **Checklist de release** (acciones del owner tras el merge a `main`): 1) `git tag v3.1.0 && git push origin v3.1.0`; 2) `GOPROXY=https://proxy.golang.org go list -m -versions github.com/drossan/go_logs/v3` muestra `v3.1.0`; 3) `git tag slack/v3.1.0 && git push origin slack/v3.1.0`; 4) comprobar que `release.yaml` termina en verde; 5) Settings → Pages → Source "GitHub Actions" y lanzar `deploy-pages.yml` a mano la primera vez.
+
+### Fuera de alcance
+- El resto de bugs del informe: deadlock reentrante del writer, rotador enhanced que borra ficheros ajenos, NaN en JSON, redactor case-insensitive, otros globales v2 con races, caller vía `Log()`, ANSI en ficheros, `Close()` no idempotentes de `signal`/`otel`, hallazgos de `http`/`otel`/`hooks`. Cada uno va en su propio plan.
+- Matriz completa de CI (varias versiones de Go, macOS/Windows, `golangci-lint`, cobertura). Este plan entra solo el `ci.yml` mínimo en Linux.
+- README raíz en inglés, `examples/`, `doc.go`, `CHANGELOG.md` separado, limpieza de `.claude/` ajeno. Puntos 4 y 6 del roadmap.
+- `slog.Handler`. Punto 5.
+- Eliminar `bufio` del `RotatingFileWriter` o cambiar su tamaño de buffer: se mantiene, solo se añade `Flush()`.
+- Añadir `Close()` a la interfaz `Logger` (cambio de API pública; plan aparte).
+- Retirar `docs/wiki/` o el workflow `sync-wiki.yml`: el wiki sigue, con snippets corregidos; `website/` es una copia declarada canónica. Decidir su retirada es un plan aparte.
+- Reescribir o ampliar el contenido de la documentación: la migración copia y corrige snippets, no redacta páginas nuevas.
+- Dominio propio para el sitio.
+- Ejecutar los `git tag` y activar Pages en Settings: acciones del owner en el ciclo de release.
+- Cambiar la semántica de `Fatal`/`FatalLog` (siguen terminando el proceso).
+
+## Recursos externos
+
+- `.claude/reports/analisis-completo-20260926.md` — hallazgos y evidencias.
+- `docs/guides/task-lifecycle.md` — flujo canónico.
+- Go Modules: "Major version suffixes" (`go.dev/ref/mod#major-version-suffixes`).
+- Patrón multi-módulo con `require` real + `replace` local: repos de `go.opentelemetry.io/otel`.
+- Diseño del flush por entrada: lumberjack y el file sink de zap (una línea = una syscall `write`); zap ignora `EINVAL`/`ENOTTY`/`EBADF` en `Sync()`.
+- VitePress: i18n (`vitepress.dev/guide/i18n`) y GitHub Pages (`vitepress.dev/guide/deploy#github-pages`).
+- GoReleaser v2: `goreleaser.com/deprecations`.
+- Decisiones de `grilling` y `design-review` (2026-09-26): ver Registro de cambios.
+
+## Estimación global
+
+- **Tareas totales**: 10.
+- **Esfuerzo estimado**: 20-26 h (una sesión por tarea; la 08 es la más larga: copiar y corregir 28 páginas).
+- **Recursos**: Go 1.27+ (`go 1.27.0` en `go.mod` desde la tarea 01; local: 1.26 con `GOTOOLCHAIN=auto`), Node 22 y pnpm 11 (locales). Los tags y la activación de Pages los hace el owner tras el merge.
+
+## Criterios de calidad y verificación
+
+- TDD: el test rojo va antes de cada fix (`features.tdd: true`). Las tareas 07, 08 y 09 no producen código Go testeable: su verificación es `pnpm build` en verde, workflows válidos (`actionlint` si está disponible) y los `grep` de snippets vacíos.
+- `gofmt -l` sin salida en los ficheros tocados; `go vet ./...` limpio; `go test -race ./...` en verde desde la tarea 05 (raíz) y en `slack/` desde la 06.
+- Gate de mutation: **desactivado** (`stack.mutation-tool: none`); cada regresión lleva su assert concreto (contadores del writer espía, comparación de campos por hijo, nivel observado por el hijo, tiempos de `Sync()` en async).
+- Gate `fact-checker` al cerrar cada tarea (no negociable).
+- Verificación end-to-end final: módulo temporal externo en `/tmp` con `replace` a la ruta local que importa `v3`, `v3/async` y `v3/slack`, loguea sin variables de entorno y termina con exit 0 con salida en consola; `go list -deps` de un consumidor que solo importa `v3` no contiene `slack-go`; benchmark end-to-end por debajo de 10 µs/op; `pnpm --dir website build` en verde; `ci.yml` en verde en el PR.
+
+## Tasks
+
+- [x] `go_logs-instalable-bugs-prod-01` (P1) — Módulo único `github.com/drossan/go_logs/v3`, LICENSE, `GetCaller` con `/vN`, build tag Windows, sin `vendor/`  · depends_on: —
+- [ ] `go_logs-instalable-bugs-prod-02` (P1) — `Init()` tolerante: sin `log.Fatalf` en `config.go`, avisos por stderr, nivel Info por defecto  · depends_on: 01
+- [ ] `go_logs-instalable-bugs-prod-03` (P1) — `With()` sin memoria compartida, copia bajo lock y nivel compartido por el árbol  · depends_on: 01
+- [ ] `go_logs-instalable-bugs-prod-04` (P1) — `Flusher`: sin fsync por entrada, `Flush()` en los cuatro writers, `Logger.Sync()` real con errno ignorados  · depends_on: 01
+- [ ] `go_logs-instalable-bugs-prod-05` (P1) — `async`: núcleo compartido entre padre e hijos, `Close()` idempotente y no-op en hijos  · depends_on: 01
+- [ ] `go_logs-instalable-bugs-prod-06` (P1) — Slack fuera del core: submódulo `slack/`, `SetNotifier`, `config.go` sin `adapters`  · depends_on: 01, 02
+- [ ] `go_logs-instalable-bugs-prod-07` (P1) — `ci.yml` mínimo: gofmt, vet, test -race en raíz y `slack/`  · depends_on: 03, 04, 05, 06
+- [ ] `go_logs-instalable-bugs-prod-08` (P2) — Sitio VitePress en `website/` con i18n y contenido migrado del wiki con snippets corregidos  · depends_on: 06
+- [ ] `go_logs-instalable-bugs-prod-09` (P2) — Workflow de despliegue a GitHub Pages  · depends_on: 08
+- [ ] `go_logs-instalable-bugs-prod-10` (P2) — README y wiki con snippets corregidos, `CLAUDE.md` veraz, changelog `v3.1.0` consolidado, GoReleaser v2, verificación e2e  · depends_on: 07, 09
+- [ ] `go_logs-instalable-bugs-prod-11` (P2) — `LogCtx(nil, ...)` sin pánico; `SuccessLevel` visible con el nivel por defecto  · depends_on: 01
+
+## Registro de cambios del plan
+
+- 2026-09-26: creado a partir del análisis completo. Decisión del owner: colapsar submódulos en el módulo raíz en vez de mantenerlos con `require` real.
+- 2026-09-26: refinado con `grilling` (5 preguntas, 6 decisiones). (1) El owner añade al plan un sitio de documentación VitePress en GitHub Pages, dentro de este mismo plan. (2) `async.With()`/`Close()` entra en alcance para cerrar con `-race` en verde. (3) Flush por entrada sin fsync. (4) `Logger.Sync()` ignora el error solo en stdout/stderr. (5) `Init()` avisa por stderr ante valores inválidos. (6) Sitio nuevo en `website/` copiado del wiki, despliegue con Actions, inglés por defecto y español en `/es/`.
+- 2026-09-26: `design-review` (subagente fresco, veredicto "no aguanta": 7 defectos demostrados, 3 de alcance, 6 de mantenibilidad, 4 nits). Correcciones aplicadas sin decisión (demostradas con código): `Flush()` también en `MultiWriter`/`SamplingWriter` vía interfaz nombrada `Flusher` (A1, C3); strip de `/vN` en `GetCaller` con test (A2); criterio "cero `log.Fatal*`" acotado a `config.go`, `FatalLog` se conserva (A3); `//go:build !windows` en `syslog_hook.go` y criterio "ocho paquetes" (A6); GoReleaser a sintaxis v2 en la tarea de release (A7); errores de `Sync()` ignorados por errno en vez de por identidad de writer, refinando la decisión (4) del grilling (C4); reescritura de arquitectura y tabla de rendimiento en `CLAUDE.md` (C2); umbral del benchmark a 10 µs informativo y test espía basado en "0 fsync + contenido legible" (D1, D2); e2e con `replace` declarada como prueba de compilación, no de instalabilidad (D3). Decisiones del owner: mantener el sitio dentro del plan pese a la recomendación de sacarlo (B1, re-estimada la tarea 08); sacar `adapters/` a submódulo `slack/` y quitar `vendor/` en esta ventana sin consumidores (B2); `ci.yml` mínimo (B3); corregir snippets también en README y wiki (C1); nivel `Info` por defecto en la ruta v2 con env vacío (A4); release `v3.1.0` consolidando el changelog (A5); `Close()` de hijos async no-op (C5); nivel compartido por el árbol de loggers y borrado del campo `parent` (C6). Tareas 06 (slack), 07 (CI) añadidas; las antiguas 06-08 pasan a 08-10.
+- 2026-09-26: `scenario-coverage` (subagente QA fresco sobre las 10 tareas, contrastado contra este plan). Sección (B) confirmó que todos los hallazgos fuera de alcance ya casaban con el `Fuera de alcance` declarado (deadlock reentrante, `Close()` no idempotentes de `signal`/`otel`, estado global v2, `combineFields`, `MultiWriter.Write` con `RLock`, `SlackHook.Run` bloqueante, ficheros basura ajenos): sin acción. Sección (A): incorporados sin re-pregunta los escenarios de regresión que solo completaban Spec ya decidido (fronteras de `GetCaller` v1/v10/genéricos, `getNotificationSettings` por nivel, reentrada de `Init()`, hijo sin campos previos y nieto de tres generaciones en `With()`, error de `Flush()` silencioso y `Sync()` con `MultiWriter` mixto, concurrencia Log+Sync, hijo creado tras `Close()` y `Close()` concurrente en `async`, canal legado `SLACK_CHANEL_ID` y notificador que falla, los 4 pasos de fallo de CI restantes y `cancel-in-progress`, enlace muerto en VitePress, `needs: build` y cola de despliegue en Pages, verificación de la tabla de rendimiento del README y de `MIGRATION.md`). Corregida una contradicción interna en la tarea 08 (recuento de páginas: `Home.md`→`index.md` cuenta dentro de las 14, no aparte). Decisiones del owner: campo duplicado padre/hijo en `With()` — se mantienen ambas apariciones, sin deduplicar (tarea 03); fuga de goroutine en `async.Wrap()` sin `Close()` — se documenta en godoc, no se corrige en esta tarea (tarea 05); aviso de notificador Slack ausente — una vez por proceso con `sync.Once`, no se re-arma (tarea 06); checklist de release — en el plan **y** en el README, no como alternativa (tarea 10); dos bugs nuevos no cubiertos por ninguna tarea ni excluidos por el plan (`LogCtx(nil, ...)` panica; `SuccessLevel` inalcanzable con el nivel por defecto) — añadida tarea 11 breve y acotada.
+- 2026-09-26: durante la tarea 01, decisión del owner: la directiva `go` del `go.mod` sube de `1.21` a `1.27.0` ("el principal consumidor soy yo; quien quiera seguir en 1.21 que use el paquete actual"). Se avisó de que la directiva es un mínimo impuesto a todo consumidor y el owner lo aceptó. Afecta a los requisitos documentados (wiki `Getting-Started*`, `Installation*`, HOW-TO); la tarea 07 (CI con Go stable) no cambia.

@@ -306,7 +306,7 @@ import (
     "fmt"
     "net/http"
 
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 type SlackHook struct {

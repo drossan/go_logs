@@ -1,3 +1,9 @@
+//go:build !windows && !plan9
+
+// The syslog hook depends on log/syslog, which the standard library does not
+// provide on windows or plan9, so this file is excluded there to keep the
+// hooks package buildable on every platform.
+
 package hooks
 
 import (
@@ -5,7 +11,7 @@ import (
 	"log/syslog"
 	"sync"
 
-	"github.com/drossan/go_logs"
+	"github.com/drossan/go_logs/v3"
 )
 
 // SyslogHook sends logs to the local syslog daemon

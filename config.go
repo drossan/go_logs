@@ -2,7 +2,7 @@ package go_logs
 
 import (
 	"bufio"
-	"github.com/drossan/go_logs/adapters"
+	"github.com/drossan/go_logs/v3/adapters"
 	"log"
 	"os"
 	"path/filepath"
@@ -45,13 +45,13 @@ var (
 // These constants define the numeric values for each log level,
 // allowing threshold-based logging similar to standard loggers.
 const (
-	LevelTrace  = 10  // Trace: Extremely detailed, high-volume information
-	LevelDebug  = 20  // Debug: Detailed diagnostic information for troubleshooting
-	LevelInfo   = 30  // Info: General operational messages
-	LevelWarn   = 40  // Warning: Potential issues or non-critical situations
-	LevelError  = 50  // Error: Operational errors that need attention
-	LevelFatal  = 60  // Fatal: Application crashes or critical errors
-	LevelSilent = 0   // Silent: Disables all logging
+	LevelTrace  = 10 // Trace: Extremely detailed, high-volume information
+	LevelDebug  = 20 // Debug: Detailed diagnostic information for troubleshooting
+	LevelInfo   = 30 // Info: General operational messages
+	LevelWarn   = 40 // Warning: Potential issues or non-critical situations
+	LevelError  = 50 // Error: Operational errors that need attention
+	LevelFatal  = 60 // Fatal: Application crashes or critical errors
+	LevelSilent = 0  // Silent: Disables all logging
 )
 
 // logLevel stores the configured logging threshold
@@ -81,11 +81,12 @@ var useLegacySystem bool
 //   - SLACK_CHANNEL_ID: Slack channel ID for notifications
 //
 // Example:
-//   // Set environment variables before calling Init()
-//   os.Setenv("SAVE_LOG_FILE", "1")
-//   os.Setenv("LOG_FILE_NAME", "app.log")
-//   go_logs.Init()
-//   go_logs.InfoLog("Application started")
+//
+//	// Set environment variables before calling Init()
+//	os.Setenv("SAVE_LOG_FILE", "1")
+//	os.Setenv("LOG_FILE_NAME", "app.log")
+//	go_logs.Init()
+//	go_logs.InfoLog("Application started")
 //
 // Note: Init() can be called multiple times safely, but subsequent calls may not
 // reinitialize components that are already set up (like the persistent log file).
@@ -358,8 +359,9 @@ func closeLogFile(file *os.File) {
 // which will automatically reinitialize the log file.
 //
 // Example:
-//   defer go_logs.Close()
-//   go_logs.InfoLog("Application shutting down")
+//
+//	defer go_logs.Close()
+//	go_logs.InfoLog("Application shutting down")
 //
 // Note: If the log file was never opened (SAVE_LOG_FILE=0), this function does nothing.
 func Close() {
@@ -375,14 +377,16 @@ func Close() {
 //   - The notifier failed to initialize
 //
 // Returns:
-//   true if Slack notifications are enabled and available, false otherwise
+//
+//	true if Slack notifications are enabled and available, false otherwise
 //
 // Example:
-//   if go_logs.IsNotifierEnabled() {
-//       go_logs.InfoLog("Slack notifications are active")
-//   } else {
-//       go_logs.WarningLog("Slack notifications are not configured")
-//   }
+//
+//	if go_logs.IsNotifierEnabled() {
+//	    go_logs.InfoLog("Slack notifications are active")
+//	} else {
+//	    go_logs.WarningLog("Slack notifications are not configured")
+//	}
 func IsNotifierEnabled() bool {
 	if notifier == nil {
 		return false

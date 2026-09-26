@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	go_logs "github.com/drossan/go_logs"
+	go_logs "github.com/drossan/go_logs/v3"
 )
 
 // TestAsyncLogger_Wrap Creates an async wrapper around a sync logger
@@ -307,7 +307,7 @@ func TestAsyncLogger_ShutdownTimeout(t *testing.T) {
 	)
 
 	asyncLogger := WrapWithConfig(syncLogger, Config{
-		BufferSize:     100,
+		BufferSize:      100,
 		ShutdownTimeout: 100 * time.Millisecond,
 	})
 

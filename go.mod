@@ -1,6 +1,6 @@
-module github.com/drossan/go_logs
+module github.com/drossan/go_logs/v3
 
-go 1.21
+go 1.27.0
 
 require (
 	github.com/fatih/color v1.16.0
