@@ -200,6 +200,20 @@ GO111MODULE=on go tool cover -html=coverage.out
 GO111MODULE=on go build ./...
 ```
 
+### CI (`.github/workflows/ci.yml`)
+
+En cada push y PR, un job en `ubuntu-latest` con Go `stable` ejecuta, en este orden y parando en el primer fallo, la misma secuencia que conviene lanzar en local antes de hacer push:
+
+```bash
+test -z "$(gofmt -l $(git ls-files '*.go'))"   # solo .go trackeados: excluye website/ y vendor/
+go vet ./... && (cd slack && go vet ./...)
+go test -race -count=1 ./...
+(cd slack && go test -race -count=1 ./...)       # el ./... de la raíz no incluye slack/
+GOOS=windows go build ./...                      # compilación cruzada, sin tests
+```
+
+`permissions: contents: read` y `concurrency` con `cancel-in-progress` por ref. Sin matriz de versiones, sin lint ni cobertura (fuera del plan `instalable-bugs-prod`).
+
 ## Niveles de Log (Syslog-style)
 
 | Nivel | Valor | Uso |

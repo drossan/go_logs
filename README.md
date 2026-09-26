@@ -2,6 +2,7 @@
 
 [![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://pkg.go.dev/github.com/drossan/go_logs/v3)
 [![Go Report Card](https://goreportcard.com/badge/github.com/drossan/go_logs)](https://goreportcard.com/report/github.com/drossan/go_logs)
+[![CI](https://github.com/drossan/go_logs/actions/workflows/ci.yml/badge.svg)](https://github.com/drossan/go_logs/actions/workflows/ci.yml)
 
 Biblioteca de logging estructurado para Go con campos tipados, múltiples formatters (Text/JSON), child loggers, context propagation, sistema de hooks extensible, y rotación de archivos. **100% backward compatible con v2**.
 
