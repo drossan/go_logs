@@ -368,3 +368,389 @@ func TestAsyncLogger_GetLevel(t *testing.T) {
 		t.Errorf("Expected WarnLevel, got %v", asyncLogger.GetLevel())
 	}
 }
+
+// safeBuffer is a bytes.Buffer protected by a mutex, so tests can read it while
+// the worker goroutine is still writing.
+type safeBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *safeBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *safeBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+// newBufferedAsync returns an async logger over a text-formatted sync logger that
+// writes to a safeBuffer.
+func newBufferedAsync(t *testing.T, cfg Config) (*Logger, *safeBuffer) {
+	t.Helper()
+	buf := &safeBuffer{}
+	syncLogger, err := go_logs.New(
+		go_logs.WithLevel(go_logs.InfoLevel),
+		go_logs.WithOutput(buf),
+		go_logs.WithFormatter(go_logs.NewTextFormatter()),
+	)
+	if err != nil {
+		t.Fatalf("go_logs.New: %v", err)
+	}
+	return WrapWithConfig(syncLogger, cfg), buf
+}
+
+// recordedCall is one call captured by recordingLogger.
+type recordedCall struct {
+	fatal  bool
+	msg    string
+	fields []go_logs.Field
+}
+
+// recordingLogger is a go_logs.Logger that records Log and Fatal calls in order
+// without terminating the process. When gate is non-nil, every Log call blocks
+// until gate is closed, which simulates a slow output.
+type recordingLogger struct {
+	mu      sync.Mutex
+	calls   []recordedCall
+	gate    chan struct{}
+	metrics *go_logs.Metrics
+}
+
+func newRecordingLogger(gate chan struct{}) *recordingLogger {
+	return &recordingLogger{gate: gate, metrics: go_logs.NewMetrics()}
+}
+
+func (r *recordingLogger) record(c recordedCall) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.calls = append(r.calls, c)
+}
+
+func (r *recordingLogger) Calls() []recordedCall {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]recordedCall(nil), r.calls...)
+}
+
+func (r *recordingLogger) Log(level go_logs.Level, msg string, fields ...go_logs.Field) {
+	if r.gate != nil {
+		<-r.gate
+	}
+	r.record(recordedCall{msg: msg, fields: fields})
+}
+
+func (r *recordingLogger) LogCtx(_ context.Context, level go_logs.Level, msg string, fields ...go_logs.Field) {
+	r.Log(level, msg, fields...)
+}
+
+func (r *recordingLogger) Trace(msg string, fields ...go_logs.Field) {
+	r.Log(go_logs.TraceLevel, msg, fields...)
+}
+func (r *recordingLogger) Debug(msg string, fields ...go_logs.Field) {
+	r.Log(go_logs.DebugLevel, msg, fields...)
+}
+func (r *recordingLogger) Info(msg string, fields ...go_logs.Field) {
+	r.Log(go_logs.InfoLevel, msg, fields...)
+}
+func (r *recordingLogger) Warn(msg string, fields ...go_logs.Field) {
+	r.Log(go_logs.WarnLevel, msg, fields...)
+}
+func (r *recordingLogger) Error(msg string, fields ...go_logs.Field) {
+	r.Log(go_logs.ErrorLevel, msg, fields...)
+}
+func (r *recordingLogger) Fatal(msg string, fields ...go_logs.Field) {
+	r.record(recordedCall{fatal: true, msg: msg, fields: fields})
+}
+func (r *recordingLogger) With(...go_logs.Field) go_logs.Logger { return r }
+func (r *recordingLogger) SetLevel(go_logs.Level)               {}
+func (r *recordingLogger) GetLevel() go_logs.Level              { return go_logs.TraceLevel }
+func (r *recordingLogger) Sync() error                          { return nil }
+func (r *recordingLogger) GetMetrics() *go_logs.Metrics         { return r.metrics }
+
+// shortConfig keeps timeouts large enough to detect "waited the full timeout".
+var shortConfig = Config{BufferSize: 100, ShutdownTimeout: 5 * time.Second}
+
+// Scenario: Sync desde un hijo espera a que su entrada se escriba.
+func TestAsyncChild_SyncWaitsForChildEntry(t *testing.T) {
+	asyncLogger, buf := newBufferedAsync(t, shortConfig)
+	defer asyncLogger.Close()
+
+	child := asyncLogger.With(go_logs.String("request_id", "req-123"))
+	child.Info("child message")
+	if err := child.Sync(); err != nil {
+		t.Fatalf("child.Sync: %v", err)
+	}
+
+	out := buf.String()
+	if !strings.Contains(out, "request_id") || !strings.Contains(out, "req-123") {
+		t.Errorf("child entry not written after child.Sync, got: %q", out)
+	}
+}
+
+// Scenario: Sync desde el padre no espera el timeout tras logs de un hijo.
+func TestAsyncChild_ParentSyncDoesNotWaitTimeout(t *testing.T) {
+	asyncLogger, buf := newBufferedAsync(t, shortConfig)
+	defer asyncLogger.Close()
+
+	child := asyncLogger.With(go_logs.String("request_id", "req-1"))
+	for i := 0; i < 10; i++ {
+		child.Info("child msg")
+	}
+
+	start := time.Now()
+	asyncLogger.Sync()
+	if elapsed := time.Since(start); elapsed >= time.Second {
+		t.Errorf("parent.Sync took %v, want < 1s", elapsed)
+	}
+	if got := strings.Count(buf.String(), "child msg"); got != 10 {
+		t.Errorf("want 10 child messages in buffer, got %d", got)
+	}
+}
+
+// Scenario: Los campos del hijo no contaminan a otro hijo.
+func TestAsyncChild_FieldsDoNotLeakBetweenSiblings(t *testing.T) {
+	asyncLogger, buf := newBufferedAsync(t, shortConfig)
+	defer asyncLogger.Close()
+
+	base := asyncLogger.With(go_logs.String("app", "x"))
+	childA := base.With(go_logs.String("req", "A"))
+	childB := base.With(go_logs.String("req", "B"))
+
+	childA.Info("from-A")
+	childA.Sync()
+	childB.Info("from-B")
+	childB.Sync()
+
+	var lineA, lineB string
+	for _, line := range strings.Split(buf.String(), "\n") {
+		switch {
+		case strings.Contains(line, "from-A"):
+			lineA = line
+		case strings.Contains(line, "from-B"):
+			lineB = line
+		}
+	}
+	if !strings.Contains(lineA, "req=A") || strings.Contains(lineA, "req=B") {
+		t.Errorf("line A = %q, want req=A and no req=B", lineA)
+	}
+	if !strings.Contains(lineB, "req=B") || strings.Contains(lineB, "req=A") {
+		t.Errorf("line B = %q, want req=B and no req=A", lineB)
+	}
+	if !strings.Contains(lineA, "app=x") || !strings.Contains(lineB, "app=x") {
+		t.Errorf("common field app=x missing: A=%q B=%q", lineA, lineB)
+	}
+}
+
+// Scenario: Fatal desde un hijo incluye los campos heredados y drena antes.
+func TestAsyncChild_FatalDrainsAndIncludesFields(t *testing.T) {
+	gate := make(chan struct{})
+	rec := newRecordingLogger(gate)
+	asyncLogger := WrapWithConfig(rec, shortConfig)
+	defer asyncLogger.Close()
+
+	child := asyncLogger.With(go_logs.String("component", "db"))
+	child.Info("previous")
+
+	fatalDone := make(chan struct{})
+	go func() {
+		defer close(fatalDone)
+		child.Fatal("boom", go_logs.Int("code", 7))
+	}()
+	time.Sleep(50 * time.Millisecond) // let Fatal start while "previous" is pending
+	close(gate)
+	<-fatalDone
+
+	calls := rec.Calls()
+	if len(calls) != 2 {
+		t.Fatalf("want 2 calls (previous, Fatal), got %+v", calls)
+	}
+	if calls[0].fatal || calls[0].msg != "previous" {
+		t.Errorf("first call = %+v, want Log(previous) before Fatal", calls[0])
+	}
+	if !calls[1].fatal || calls[1].msg != "boom" {
+		t.Fatalf("second call = %+v, want Fatal(boom)", calls[1])
+	}
+	keys := map[string]bool{}
+	for _, f := range calls[1].fields {
+		keys[f.Key()] = true
+	}
+	if !keys["component"] || !keys["code"] {
+		t.Errorf("Fatal fields = %+v, want component and code", calls[1].fields)
+	}
+}
+
+// Scenario: Close en la raíz es idempotente.
+func TestAsyncClose_Idempotent(t *testing.T) {
+	asyncLogger, buf := newBufferedAsync(t, shortConfig)
+	for i := 0; i < 20; i++ {
+		asyncLogger.Info("pending msg")
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("second Close panicked: %v", r)
+		}
+	}()
+	if err := asyncLogger.Close(); err != nil {
+		t.Errorf("first Close: %v", err)
+	}
+	if err := asyncLogger.Close(); err != nil {
+		t.Errorf("second Close: %v", err)
+	}
+	if got := strings.Count(buf.String(), "pending msg"); got != 20 {
+		t.Errorf("want 20 messages written, got %d", got)
+	}
+}
+
+// Scenario: Close desde un hijo no apaga el pipeline.
+func TestAsyncClose_ChildIsNoOp(t *testing.T) {
+	asyncLogger, buf := newBufferedAsync(t, shortConfig)
+	defer asyncLogger.Close()
+
+	child := asyncLogger.With(go_logs.String("k", "v")).(*Logger)
+	if err := child.Close(); err != nil {
+		t.Errorf("child.Close: %v", err)
+	}
+
+	asyncLogger.Info("after child close")
+	asyncLogger.Sync()
+	if !strings.Contains(buf.String(), "after child close") {
+		t.Errorf("parent stopped logging after child.Close, got: %q", buf.String())
+	}
+}
+
+// Scenario: Un hijo creado tras Close no puede volver a loguear.
+func TestAsyncClose_ChildCreatedAfterCloseIsDiscarded(t *testing.T) {
+	asyncLogger, buf := newBufferedAsync(t, shortConfig)
+	asyncLogger.Close()
+
+	child := asyncLogger.With(go_logs.String("k", "v"))
+	child.Info("late child")
+
+	start := time.Now()
+	child.Sync()
+	if elapsed := time.Since(start); elapsed >= time.Second {
+		t.Errorf("child.Sync after Close took %v, want < 1s (entry must not be pending)", elapsed)
+	}
+	if strings.Contains(buf.String(), "late child") {
+		t.Errorf("entry from child created after Close was written: %q", buf.String())
+	}
+}
+
+// Scenario: Close en la raíz concurrente con logs de un hijo no produce pánico ni carreras.
+func TestAsyncClose_ConcurrentWithChildLogging(t *testing.T) {
+	cfg := Config{BufferSize: 100, ShutdownTimeout: 500 * time.Millisecond}
+	asyncLogger, _ := newBufferedAsync(t, cfg)
+	child := asyncLogger.With(go_logs.String("k", "v"))
+
+	stop := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+				child.Info("spam")
+			}
+		}
+	}()
+
+	time.Sleep(20 * time.Millisecond)
+	start := time.Now()
+	err := asyncLogger.Close()
+	elapsed := time.Since(start)
+	close(stop)
+	wg.Wait()
+
+	if err != nil {
+		t.Errorf("Close: %v", err)
+	}
+	if elapsed > cfg.ShutdownTimeout {
+		t.Errorf("Close took %v, want <= %v", elapsed, cfg.ShutdownTimeout)
+	}
+}
+
+// Scenario: ShutdownTimeout no positivo cae al valor por defecto.
+func TestAsyncConfig_NonPositiveShutdownTimeoutDefaults(t *testing.T) {
+	for _, timeout := range []time.Duration{0, -time.Second} {
+		asyncLogger, _ := newBufferedAsync(t, Config{BufferSize: 10, ShutdownTimeout: timeout})
+		if got := effectiveShutdownTimeout(asyncLogger); got != 5*time.Second {
+			t.Errorf("ShutdownTimeout(%v) → %v, want 5s", timeout, got)
+		}
+		asyncLogger.Close()
+	}
+}
+
+// Scenario: Registrar tras Close en la raíz se descarta sin pánico.
+func TestAsyncClose_LogAfterCloseIsDiscarded(t *testing.T) {
+	asyncLogger, buf := newBufferedAsync(t, shortConfig)
+	asyncLogger.Close()
+
+	asyncLogger.Info("late")
+	asyncLogger.Sync()
+	if strings.Contains(buf.String(), "late") {
+		t.Errorf("entry logged after Close was written: %q", buf.String())
+	}
+}
+
+// assertDropsWithoutBlocking logs 10 messages through logger (whose root has a
+// buffer of 1 and a blocked sync logger) and checks drops are counted without
+// blocking the caller.
+func assertDropsWithoutBlocking(t *testing.T, logger go_logs.Logger, rec *recordingLogger) {
+	t.Helper()
+	start := time.Now()
+	for i := 0; i < 10; i++ {
+		logger.Info("flood")
+	}
+	if elapsed := time.Since(start); elapsed > 100*time.Millisecond {
+		t.Errorf("logging blocked the caller for %v", elapsed)
+	}
+	if rec.metrics.Dropped() == 0 {
+		t.Error("want dropped > 0 with a full buffer")
+	}
+}
+
+// Scenario: Buffer lleno descarta y contabiliza.
+func TestAsyncBufferFull_DropsAndCounts(t *testing.T) {
+	gate := make(chan struct{})
+	rec := newRecordingLogger(gate)
+	asyncLogger := WrapWithConfig(rec, Config{BufferSize: 1, ShutdownTimeout: 100 * time.Millisecond})
+	defer func() { close(gate); asyncLogger.Close() }()
+
+	assertDropsWithoutBlocking(t, asyncLogger, rec)
+}
+
+// Scenario: Buffer lleno descarta y contabiliza también cuando loguea un hijo.
+func TestAsyncBufferFull_ChildDropsAndCounts(t *testing.T) {
+	gate := make(chan struct{})
+	rec := newRecordingLogger(gate)
+	asyncLogger := WrapWithConfig(rec, Config{BufferSize: 1, ShutdownTimeout: 100 * time.Millisecond})
+	defer func() { close(gate); asyncLogger.Close() }()
+
+	assertDropsWithoutBlocking(t, asyncLogger.With(go_logs.String("k", "v")), rec)
+}
+
+// Close on a child logger must not stop the worker even if called several times.
+func TestAsyncClose_ChildRepeatedCloseIsSafe(t *testing.T) {
+	asyncLogger, _ := newBufferedAsync(t, shortConfig)
+	defer asyncLogger.Close()
+	child := asyncLogger.With().(*Logger)
+	for i := 0; i < 3; i++ {
+		if err := child.Close(); err != nil {
+			t.Errorf("child.Close #%d: %v", i, err)
+		}
+	}
+}
+
+// effectiveShutdownTimeout exposes the timeout the logger will actually use.
+func effectiveShutdownTimeout(l *Logger) time.Duration {
+	return l.core.config.ShutdownTimeout
+}

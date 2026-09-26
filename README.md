@@ -416,7 +416,7 @@ syncLogger, _ := go_logs.New(go_logs.WithLevel(go_logs.InfoLevel))
 
 // Envolver con async (buffer size 1000)
 asyncLogger := async.Wrap(syncLogger, 1000)
-defer asyncLogger.Sync()
+defer asyncLogger.Close() // drena lo pendiente y detiene la goroutine worker
 
 // Non-blocking logging
 asyncLogger.Info("Server started", go_logs.Int("port", 8080))
@@ -430,6 +430,10 @@ asyncLogger := async.WrapWithConfig(syncLogger, async.Config{
 // Child logger con campos
 childLogger := asyncLogger.With(go_logs.String("request_id", "abc-123"))
 ```
+
+- Los hijos creados con `With()` comparten el buffer, la goroutine worker y el contador de pendientes de la raíz: `childLogger.Sync()` espera a que se escriban sus entradas (y las del resto del árbol).
+- `Close()` solo tiene efecto en la raíz devuelta por `Wrap`/`WrapWithConfig`, es idempotente, y en un hijo es no-op (devuelve `nil`). Lo que se registre después de `Close()` se descarta.
+- `Sync()` no detiene la goroutine worker: sin `Close()` sigue viva hasta que termina el proceso.
 
 ### Dynamic Level via HTTP (Submódulo - Opt-in)
 

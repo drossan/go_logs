@@ -377,11 +377,13 @@ import "github.com/drossan/go_logs/v3/async"
 
 syncLogger, _ := go_logs.New(go_logs.WithLevel(go_logs.InfoLevel))
 asyncLogger := async.Wrap(syncLogger, 1000) // buffer size 1000
-defer asyncLogger.Sync()
+defer asyncLogger.Close() // drena y detiene el worker; Sync() no lo detiene
 
 // Non-blocking logging
 asyncLogger.Info("Server started", go_logs.Int("port", 8080))
 ```
+
+Los hijos (`With()`) comparten por puntero un `core` no exportado (buffer, worker, contador `pending`, `closeOnce`), así que `Sync()` en cualquier nodo espera a todo el árbol. `Close()` solo actúa en la raíz (idempotente con `sync.Once`); en un hijo es no-op. `Fatal` drena primero y añade los campos del hijo.
 
 ### Dynamic Level via HTTP (Submódulo - Opt-in)
 

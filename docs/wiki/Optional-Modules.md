@@ -80,7 +80,7 @@ syncLogger, _ := go_logs.New(go_logs.WithLevel(go_logs.InfoLevel))
 
 // Wrap with async (buffer size 1000)
 asyncLogger := async.Wrap(syncLogger, 1000)
-defer asyncLogger.Sync()
+defer asyncLogger.Close() // drains pending logs and stops the worker goroutine
 
 // Non-blocking logging
 asyncLogger.Info("Server started", go_logs.Int("port", 8080))
@@ -91,7 +91,7 @@ asyncLogger.Info("Server started", go_logs.Int("port", 8080))
 ```go
 asyncLogger := async.WrapWithConfig(syncLogger, async.Config{
     BufferSize:      10000,              // Buffer capacity
-    ShutdownTimeout: 10 * time.Second,   // Max wait on Sync()
+    ShutdownTimeout: 10 * time.Second,   // Max wait on Sync()/Close()
 })
 ```
 
@@ -99,7 +99,9 @@ asyncLogger := async.WrapWithConfig(syncLogger, async.Config{
 
 - **Non-blocking**: Log calls return immediately
 - **Drop-on-overflow**: If buffer is full, logs are dropped (counted in metrics)
-- **Graceful shutdown**: `Sync()` waits for all pending logs
+- **Graceful shutdown**: `Sync()` waits for all pending logs; `Close()` also stops the worker goroutine. `Sync()` alone never stops it
+- **Child loggers**: loggers created with `With()` share the root's buffer, worker and pending counter, so `child.Sync()` waits for the child's entries
+- **`Close()`**: only affects the root logger returned by `Wrap`/`WrapWithConfig`; it is idempotent, is a no-op on children, and logs sent after it are discarded
 - **Shared metrics**: Dropped logs increment the shared metrics counter
 
 ### When to Use

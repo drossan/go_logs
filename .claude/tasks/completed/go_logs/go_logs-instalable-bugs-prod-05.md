@@ -2,11 +2,11 @@
 id: go_logs-instalable-bugs-prod-05
 package: go_logs
 plan: instalable-bugs-prod
-status: pending
+status: done
 priority: 1
 depends_on: [go_logs-instalable-bugs-prod-01]
 estimate: 2h
-actual:
+actual: 0.4h
 created: 2026-09-26
 updated: 2026-09-26
 ---
@@ -130,14 +130,14 @@ Feature: Cierre del logger asíncrono
 
 ## Definition of Done
 
-- [ ] Tests escritos ANTES de la implementación (TDD) — Red → Green → Refactor
-- [ ] Cada escenario Gherkin tiene al menos un test (camino feliz + bordes/errores)
-- [ ] Todos los tests en verde: `go test -race ./...` desde la raíz (todos los paquetes)
-- [ ] Spec cumplida; lo declarado en `Provides` queda realmente disponible para las tareas dependientes
-- [ ] Lint / format / typecheck OK: `gofmt -l async/` sin salida; `go vet ./...` limpio
-- [ ] Gate de `fact-checker` superado — afirmaciones de la sesión verificadas (INCORRECTO bloquea; NO VERIFICABLE = aviso a reconocer), antes de commit/resumen  · no-negociable
-- [ ] Documentación actualizada — tres capas:
-  - [ ] **godoc en el código** — `Logger`, `With`, `Close` (no-op en hijos), `Fatal`, `core`
-  - [ ] **Doc técnica (contexto)** — README y wiki "Optional-Modules": `defer asyncLogger.Close()` en el ejemplo (no `Sync`), nota sobre hijos
-  - [ ] **Histórico de la tarea** — session log en `.claude/context/go_logs/go_logs-instalable-bugs-prod-05.md`
-- [ ] Commit en la rama del plan: `go_logs-instalable-bugs-prod-05: <conventional commit>`
+- [x] Tests escritos ANTES de la implementación (TDD) — Red → Green → Refactor
+- [x] Cada escenario Gherkin tiene al menos un test (camino feliz + bordes/errores)
+- [x] Todos los tests en verde: `go test -race ./...` desde la raíz (todos los paquetes)
+- [x] Spec cumplida; lo declarado en `Provides` queda realmente disponible para las tareas dependientes
+- [x] Lint / format / typecheck OK: `gofmt -l async/` sin salida; `go vet ./...` limpio
+- [x] Gate de `fact-checker` superado — afirmaciones de la sesión verificadas (INCORRECTO bloquea; NO VERIFICABLE = aviso a reconocer), antes de commit/resumen  · no-negociable
+- [x] Documentación actualizada — tres capas:
+  - [x] **godoc en el código** — `Logger`, `With`, `Close` (no-op en hijos), `Fatal`, `core`
+  - [x] **Doc técnica (contexto)** — README y wiki "Optional-Modules": `defer asyncLogger.Close()` en el ejemplo (no `Sync`), nota sobre hijos
+  - [x] **Histórico de la tarea** — session log en `.claude/context/go_logs/go_logs-instalable-bugs-prod-05.md`
+- [x] Commit en la rama del plan: `go_logs-instalable-bugs-prod-05: <conventional commit>`

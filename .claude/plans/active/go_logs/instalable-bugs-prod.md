@@ -108,7 +108,7 @@ El análisis de `.claude/reports/analisis-completo-20260926.md` (2026-09-26) rep
 - [x] `go_logs-instalable-bugs-prod-02` (P1) — `Init()` tolerante: sin `log.Fatalf` en `config.go`, avisos por stderr, nivel Info por defecto  · depends_on: 01
 - [x] `go_logs-instalable-bugs-prod-03` (P1) — `With()` sin memoria compartida, copia bajo lock y nivel compartido por el árbol  · depends_on: 01
 - [x] `go_logs-instalable-bugs-prod-04` (P1) — `Flusher`: sin fsync por entrada, `Flush()` en los cuatro writers, `Logger.Sync()` real con errno ignorados  · depends_on: 01
-- [ ] `go_logs-instalable-bugs-prod-05` (P1) — `async`: núcleo compartido entre padre e hijos, `Close()` idempotente y no-op en hijos  · depends_on: 01
+- [x] `go_logs-instalable-bugs-prod-05` (P1) — `async`: núcleo compartido entre padre e hijos, `Close()` idempotente y no-op en hijos  · depends_on: 01
 - [ ] `go_logs-instalable-bugs-prod-06` (P1) — Slack fuera del core: submódulo `slack/`, `SetNotifier`, `config.go` sin `adapters`  · depends_on: 01, 02
 - [ ] `go_logs-instalable-bugs-prod-07` (P1) — `ci.yml` mínimo: gofmt, vet, test -race en raíz y `slack/`  · depends_on: 03, 04, 05, 06
 - [ ] `go_logs-instalable-bugs-prod-08` (P2) — Sitio VitePress en `website/` con i18n y contenido migrado del wiki con snippets corregidos  · depends_on: 06
