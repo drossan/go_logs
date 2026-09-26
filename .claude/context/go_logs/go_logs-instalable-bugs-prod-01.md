@@ -62,7 +62,7 @@ Cobertura de escenarios: módulo /v3, paquetes, e2e, Windows, vendor y LICENSE s
 
 **Docs actualizadas**: godoc de `packageFromFuncName`/`isMajorVersionSuffix`, comentario del build tag en `syslog_hook.go`; import path `/v3` en `README.md`, `MIGRATION.md`, `CLAUDE.md`, `docs/wiki/*.md` (lo pide la Spec); requisito Go 1.27 en la wiki y el HOW-TO (decisión del owner); plan (Recursos + Registro de cambios).
 
-**Ficheros**: `go.mod`, `caller.go`, `caller_test.go`, `signal/signal_test.go`, `hooks/syslog_hook.go`, `LICENSE`, 13 `.go` con import reescrito, 5 `go.mod` borrados, `vendor/` fuera del índice, docs. Commit: `go_logs-instalable-bugs-prod-01: refactor!: single v3 module, LICENSE, /vN-aware GetCaller, windows build`.
+**Ficheros**: `go.mod`, `caller.go`, `caller_test.go`, `signal/signal_test.go`, `hooks/syslog_hook.go`, `LICENSE`, 13 `.go` con import reescrito, 5 `go.mod` borrados, `vendor/` fuera del índice, docs. Commit `bf977ac`: `go_logs-instalable-bugs-prod-01: refactor!: single v3 module, LICENSE, /vN-aware GetCaller, windows build`.
 
 **Tiempo real**: ~0.3 h (22:13–22:28) frente a 3 h estimadas.
 
