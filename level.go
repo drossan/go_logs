@@ -50,10 +50,12 @@ func (l Level) shouldLog(threshold Level) bool {
 // Syslog-style filtering: log if message level >= threshold level.
 //
 // Parameters:
-//   threshold - The minimum level threshold
+//
+//	threshold - The minimum level threshold
 //
 // Returns:
-//   true if this level meets or exceeds the threshold, false otherwise
+//
+//	true if this level meets or exceeds the threshold, false otherwise
 //
 // Example:
 //

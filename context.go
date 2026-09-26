@@ -28,11 +28,13 @@ var (
 // log entries within a single request/transaction flow.
 //
 // Parameters:
-//   ctx     - The parent context
-//   traceID - The trace ID to associate with this context
+//
+//	ctx     - The parent context
+//	traceID - The trace ID to associate with this context
 //
 // Returns:
-//   A new context with the trace ID stored
+//
+//	A new context with the trace ID stored
 //
 // Example:
 //
@@ -48,11 +50,13 @@ func WithTraceID(ctx context.Context, traceID string) context.Context {
 // can have multiple spans (e.g., HTTP request, database query, external API call).
 //
 // Parameters:
-//   ctx    - The parent context
-//   spanID - The span ID to associate with this context
+//
+//	ctx    - The parent context
+//	spanID - The span ID to associate with this context
 //
 // Returns:
-//   A new context with the span ID stored
+//
+//	A new context with the span ID stored
 //
 // Example:
 //
@@ -69,11 +73,13 @@ func WithSpanID(ctx context.Context, spanID string) context.Context {
 // scoped to a single service or application.
 //
 // Parameters:
-//   ctx       - The parent context
-//   requestID - The request ID to associate with this context
+//
+//	ctx       - The parent context
+//	requestID - The request ID to associate with this context
 //
 // Returns:
-//   A new context with the request ID stored
+//
+//	A new context with the request ID stored
 //
 // Example:
 //
@@ -89,11 +95,13 @@ func WithRequestID(ctx context.Context, requestID string) context.Context {
 // which is valuable for auditing and user-specific debugging.
 //
 // Parameters:
-//   ctx    - The parent context
-//   userID - The user ID to associate with this context
+//
+//	ctx    - The parent context
+//	userID - The user ID to associate with this context
 //
 // Returns:
-//   A new context with the user ID stored
+//
+//	A new context with the user ID stored
 //
 // Example:
 //
@@ -108,10 +116,12 @@ func WithUserID(ctx context.Context, userID string) context.Context {
 // If no trace ID is set in the context, returns an empty string.
 //
 // Parameters:
-//   ctx - The context to extract from
+//
+//	ctx - The context to extract from
 //
 // Returns:
-//   The trace ID if set, or empty string
+//
+//	The trace ID if set, or empty string
 //
 // Example:
 //
@@ -133,10 +143,12 @@ func GetTraceID(ctx context.Context) string {
 // If no span ID is set in the context, returns an empty string.
 //
 // Parameters:
-//   ctx - The context to extract from
+//
+//	ctx - The context to extract from
 //
 // Returns:
-//   The span ID if set, or empty string
+//
+//	The span ID if set, or empty string
 func GetSpanID(ctx context.Context) string {
 	if v := ctx.Value(spanIDKey); v != nil {
 		if spanID, ok := v.(string); ok {
@@ -151,10 +163,12 @@ func GetSpanID(ctx context.Context) string {
 // If no request ID is set in the context, returns an empty string.
 //
 // Parameters:
-//   ctx - The context to extract from
+//
+//	ctx - The context to extract from
 //
 // Returns:
-//   The request ID if set, or empty string
+//
+//	The request ID if set, or empty string
 func GetRequestID(ctx context.Context) string {
 	if v := ctx.Value(requestIDKey); v != nil {
 		if requestID, ok := v.(string); ok {
@@ -169,10 +183,12 @@ func GetRequestID(ctx context.Context) string {
 // If no user ID is set in the context, returns an empty string.
 //
 // Parameters:
-//   ctx - The context to extract from
+//
+//	ctx - The context to extract from
 //
 // Returns:
-//   The user ID if set, or empty string
+//
+//	The user ID if set, or empty string
 func GetUserID(ctx context.Context) string {
 	if v := ctx.Value(userIDKey); v != nil {
 		if userID, ok := v.(string); ok {
@@ -189,10 +205,12 @@ func GetUserID(ctx context.Context) string {
 // by LogCtx to automatically include context information in log entries.
 //
 // Parameters:
-//   ctx - The context to extract from
+//
+//	ctx - The context to extract from
 //
 // Returns:
-//   A slice of Field structs containing the extracted context values
+//
+//	A slice of Field structs containing the extracted context values
 //
 // Example:
 //

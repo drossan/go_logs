@@ -135,10 +135,10 @@ func split(s string, delim byte) []string {
 
 // MockLogger is a mock logger for testing
 type MockLogger struct {
-	mu       sync.Mutex
-	entries  []MockEntry
-	level    Level
-	lastErr  error
+	mu      sync.Mutex
+	entries []MockEntry
+	level   Level
+	lastErr error
 }
 
 // MockEntry represents a captured log entry

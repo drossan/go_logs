@@ -14,10 +14,12 @@ import (
 // After logging, the program terminates by calling log.Fatal().
 //
 // Parameters:
-//   message - The fatal message to log
+//
+//	message - The fatal message to log
 //
 // Example:
-//   FatalLog("Database connection failed")
+//
+//	FatalLog("Database connection failed")
 //
 // Environment variables:
 //   - SAVE_LOG_FILE: Enable file logging (0 or 1)
@@ -36,10 +38,12 @@ func FatalLog(message string) {
 // If Slack notifications are enabled for ERROR level, the message is sent to Slack.
 //
 // Parameters:
-//   message - The error message to log
+//
+//	message - The error message to log
 //
 // Example:
-//   ErrorLog("Failed to connect to database")
+//
+//	ErrorLog("Failed to connect to database")
 //
 // Environment variables:
 //   - SAVE_LOG_FILE: Enable file logging (0 or 1)
@@ -58,10 +62,12 @@ func ErrorLog(message string) {
 // If Slack notifications are enabled for INFO level, the message is sent to Slack.
 //
 // Parameters:
-//   message - The informational message to log
+//
+//	message - The informational message to log
 //
 // Example:
-//   InfoLog("Server started on port 8080")
+//
+//	InfoLog("Server started on port 8080")
 //
 // Environment variables:
 //   - SAVE_LOG_FILE: Enable file logging (0 or 1)
@@ -80,10 +86,12 @@ func InfoLog(message string) {
 // If Slack notifications are enabled for SUCCESS level, the message is sent to Slack.
 //
 // Parameters:
-//   message - The success message to log
+//
+//	message - The success message to log
 //
 // Example:
-//   SuccessLog("Operation completed successfully")
+//
+//	SuccessLog("Operation completed successfully")
 //
 // Environment variables:
 //   - SAVE_LOG_FILE: Enable file logging (0 or 1)
