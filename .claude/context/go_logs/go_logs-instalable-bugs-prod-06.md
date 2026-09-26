@@ -68,6 +68,8 @@
 - `slack/README.md` nuevo; `README.md`: sección Slack reescrita con snippet que compila, "zero deps" corregido, nota en las variables; `CLAUDE.md`: árbol con `slack/` en lugar de `adapters/`, "Zero Dependencies", sección "Slack (submódulo `slack/`)".
 - Plan (Registro de cambios + rutas) y tarea 10 (rutas del e2e).
 
+**Commit** `21f6ca6`: `go_logs-instalable-bugs-prod-06: refactor(slack)!: move Slack out of the core into submodule slack/v3, add SetNotifier`.
+
 **Ficheros**: `config.go`, `save.go`, `config_test.go`, `notifier_test.go` (nuevo), `go.mod`, `go.sum`, `hooks/slack_hook.go`, `slack/{go.mod,go.sum,notifier.go,notifier_test.go,README.md}` (nuevos), `adapters/` (borrado), `README.md`, `MIGRATION.md`, `CLAUDE.md`, plan, tarea 10, task file, este log.
 
 **Tiempo real**: ~0,2 h (23:24–23:34 más la espera del fact-checker) frente a 3 h estimadas.
