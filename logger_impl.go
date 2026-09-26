@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -13,11 +14,12 @@ import (
 // This type is exported to allow the Option pattern to work, but should not
 // be used directly by application code.
 type LoggerImpl struct {
-	// mu protects level changes during concurrent operations
+	// mu protects output, formatter, hooks, redactor and writes
 	mu sync.RWMutex
 
-	// level is the minimum log level threshold
-	level Level
+	// level is the minimum log level threshold. It is shared by pointer
+	// with every logger derived via With(), so the whole tree has one level.
+	level *atomic.Int32
 
 	// output is where log entries are written
 	output io.Writer
@@ -30,9 +32,6 @@ type LoggerImpl struct {
 
 	// redactor masks sensitive data (will be used in Phase 6)
 	redactor *Redactor
-
-	// parent enables child logger support via With()
-	parent *LoggerImpl
 
 	// fields are inherited by child loggers
 	fields []Field
@@ -65,27 +64,27 @@ type LoggerImpl struct {
 func NewLogger(opts ...Option) (Logger, error) {
 	// Create logger with defaults
 	l := &LoggerImpl{
-		level:            InfoLevel,
+		level:            new(atomic.Int32),
 		output:           os.Stdout,
 		formatter:        loadLogFormat(), // Load from LOG_FORMAT env var
 		hooks:            []Hook{},
 		fields:           []Field{},
 		flags:            0,
 		enableCaller:     false,
-		callerSkip:       2, // Default skip: GetCaller + Log
+		callerSkip:       2,          // Default skip: GetCaller + Log
 		callerLevel:      ErrorLevel, // Default: auto-capture caller for Error+
 		enableStackTrace: false,
-		stackTraceLevel:  ErrorLevel, // Default: capture stack for Error+
+		stackTraceLevel:  ErrorLevel,   // Default: capture stack for Error+
 		metrics:          NewMetrics(), // Always enabled, zero overhead
 	}
+
+	l.level.Store(int32(InfoLevel))
 
 	// Apply options
 	for _, opt := range opts {
 		switch o := opt.(type) {
 		case *LevelOption:
-			l.mu.Lock()
-			l.level = o.Level
-			l.mu.Unlock()
+			l.level.Store(int32(o.Level))
 		case *OutputOption:
 			l.mu.Lock()
 			l.output = o.Output
@@ -250,10 +249,24 @@ func (l *LoggerImpl) Fatal(msg string, fields ...Field) {
 	os.Exit(1)
 }
 
-// With implements Logger.With
+// With implements Logger.With.
+//
+// The child gets its own copy of the parent's fields followed by fields, so
+// siblings never share memory and the parent is never modified. Duplicate
+// keys are not deduplicated: both occurrences are emitted.
+//
+// The level is shared by the whole logger tree: SetLevel on the parent, a
+// child or any descendant changes the level seen by all of them, including
+// children created earlier. Output, formatter, hooks, redactor, caller and
+// stack trace settings are copied under the read lock at creation time;
+// metrics are shared with the parent.
 func (l *LoggerImpl) With(fields ...Field) Logger {
-	// Create child logger with parent's fields + new fields
-	childFields := append(l.fields, fields...)
+	childFields := make([]Field, 0, len(l.fields)+len(fields))
+	childFields = append(childFields, l.fields...)
+	childFields = append(childFields, fields...)
+
+	l.mu.RLock()
+	defer l.mu.RUnlock()
 
 	return &LoggerImpl{
 		level:            l.level,
@@ -261,7 +274,6 @@ func (l *LoggerImpl) With(fields ...Field) Logger {
 		formatter:        l.formatter,
 		hooks:            l.hooks,
 		redactor:         l.redactor,
-		parent:           l,
 		fields:           childFields,
 		flags:            l.flags,
 		enableCaller:     l.enableCaller,
@@ -273,18 +285,20 @@ func (l *LoggerImpl) With(fields ...Field) Logger {
 	}
 }
 
-// SetLevel implements Logger.SetLevel
+// SetLevel implements Logger.SetLevel.
+//
+// The level is shared by the whole logger tree created with With(): calling
+// SetLevel on any logger of the tree (root, child or grandchild) changes the
+// level for all of them. It is an atomic store and never takes the mutex.
 func (l *LoggerImpl) SetLevel(level Level) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.level = level
+	l.level.Store(int32(level))
 }
 
-// GetLevel implements Logger.GetLevel
+// GetLevel implements Logger.GetLevel.
+//
+// It returns the level shared by the whole logger tree (see SetLevel).
 func (l *LoggerImpl) GetLevel() Level {
-	l.mu.RLock()
-	defer l.mu.RUnlock()
-	return l.level
+	return l.getLevel()
 }
 
 // Sync implements Logger.Sync
@@ -296,11 +310,10 @@ func (l *LoggerImpl) Sync() error {
 
 // Helper methods
 
-// getLevel returns the current level with read lock
+// getLevel returns the current level with an atomic load (no mutex), so the
+// fast-path filtering in Log never contends with configuration changes.
 func (l *LoggerImpl) getLevel() Level {
-	l.mu.RLock()
-	defer l.mu.RUnlock()
-	return l.level
+	return Level(l.level.Load())
 }
 
 // getHooks returns a copy of hooks to avoid race conditions

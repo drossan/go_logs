@@ -309,6 +309,7 @@ Opciones:
 ## Notas Importantes
 
 - **Thread-safe**: Toda la implementación es thread-safe con mutex
+- **Child loggers**: `With()` copia los campos del padre en un slice nuevo (los hijos nunca comparten memoria de campos) y copia la configuración bajo `RLock`. El **nivel es compartido por todo el árbol** (`*atomic.Int32` por puntero): `SetLevel` en padre, hijo o nieto afecta a todos, y el filtrado por nivel no toma el mutex
 - **Zero allocations**: Fields y level filtering no hacen allocations
 - **Backward compatible**: v2 API funciona sin cambios
 - **Context support**: Extrae trace_id, span_id automáticamente

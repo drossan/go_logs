@@ -102,7 +102,10 @@ type Logger interface {
 	// the provided fields to every log message. This is useful for adding
 	// context like request_id, user_id, service name, etc.
 	//
-	// The parent logger is not modified.
+	// The parent logger is not modified, and children of the same parent
+	// never share field memory. The level is shared by the whole logger
+	// tree: SetLevel on the parent or on any child affects all of them,
+	// including children created earlier.
 	//
 	// Example:
 	//   baseLogger, _ := go_logs.New()
@@ -118,12 +121,15 @@ type Logger interface {
 	//
 	// Only messages at or above this level will be logged.
 	// This can be changed at runtime to enable/disable verbose logging.
+	// The level is shared by the whole logger tree created with With():
+	// changing it on the root, a child or a grandchild changes it for all.
 	//
 	// Example:
 	//   logger.SetLevel(go_logs.DebugLevel) // Enable debug logging
 	SetLevel(level Level)
 
-	// GetLevel returns the current minimum log level threshold.
+	// GetLevel returns the current minimum log level threshold, which is
+	// shared by the whole logger tree created with With().
 	//
 	// Example:
 	//   if logger.GetLevel() >= go_logs.DebugLevel {

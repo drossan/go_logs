@@ -157,6 +157,16 @@ reqLogger.Info("processing data")
 reqLogger.Error("validation failed")
 ```
 
+Cada hijo recibe su propia copia de los campos: dos hijos del mismo padre nunca se pisan los campos y el padre no se modifica. Si padre e hijo declaran la misma clave, la línea lleva las dos apariciones (no se deduplican).
+
+**El nivel es compartido por todo el árbol de loggers**: `SetLevel` sobre el padre, un hijo o un nieto cambia el nivel de todos, incluidos los hijos creados antes. Así, `http.DynamicLevelHandler` sobre el logger raíz afecta también a los loggers de request.
+
+```go
+reqLogger := logger.With(go_logs.String("request_id", "abc-123"))
+logger.SetLevel(go_logs.DebugLevel)
+reqLogger.Debug("visible") // se emite: el hijo ve el nivel Debug del padre
+```
+
 ## Caller Info
 
 Muestra automáticamente archivo, línea y función en cada log:

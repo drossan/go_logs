@@ -2,11 +2,11 @@
 id: go_logs-instalable-bugs-prod-03
 package: go_logs
 plan: instalable-bugs-prod
-status: pending
+status: done
 priority: 1
 depends_on: [go_logs-instalable-bugs-prod-01]
 estimate: 2h
-actual:
+actual: 0.3h
 created: 2026-09-26
 updated: 2026-09-26
 ---
@@ -123,14 +123,14 @@ Feature: El nivel de log es compartido por todo el árbol de loggers
 
 ## Definition of Done
 
-- [ ] Tests escritos ANTES de la implementación (TDD) — Red → Green → Refactor
-- [ ] Cada escenario Gherkin tiene al menos un test (camino feliz + bordes/errores)
-- [ ] Todos los tests en verde: `go test -race .` (paquete raíz) y `go test ./...`
-- [ ] Spec cumplida; lo declarado en `Provides` queda realmente disponible para las tareas dependientes
-- [ ] Lint / format / typecheck OK: `gofmt -l logger_impl.go logger_test.go` sin salida; `go vet ./...` limpio
-- [ ] Gate de `fact-checker` superado — afirmaciones de la sesión verificadas (INCORRECTO bloquea; NO VERIFICABLE = aviso a reconocer), antes de commit/resumen  · no-negociable
-- [ ] Documentación actualizada — tres capas:
-  - [ ] **godoc en el código** — `With`, `SetLevel`, `GetLevel` documentan el nivel compartido
-  - [ ] **Doc técnica (contexto)** — nota en README ("Child loggers") y CLAUDE.md sobre el nivel compartido
-  - [ ] **Histórico de la tarea** — session log en `.claude/context/go_logs/go_logs-instalable-bugs-prod-03.md`
-- [ ] Commit en la rama del plan: `go_logs-instalable-bugs-prod-03: <conventional commit>`
+- [x] Tests escritos ANTES de la implementación (TDD) — Red → Green → Refactor
+- [x] Cada escenario Gherkin tiene al menos un test (camino feliz + bordes/errores)
+- [x] Todos los tests en verde: `go test -race .` (paquete raíz) y `go test ./...`
+- [x] Spec cumplida; lo declarado en `Provides` queda realmente disponible para las tareas dependientes
+- [x] Lint / format / typecheck OK: `gofmt -l logger_impl.go logger_test.go` sin salida; `go vet ./...` limpio
+- [x] Gate de `fact-checker` superado — afirmaciones de la sesión verificadas (INCORRECTO bloquea; NO VERIFICABLE = aviso a reconocer), antes de commit/resumen  · no-negociable
+- [x] Documentación actualizada — tres capas:
+  - [x] **godoc en el código** — `With`, `SetLevel`, `GetLevel` documentan el nivel compartido
+  - [x] **Doc técnica (contexto)** — nota en README ("Child loggers") y CLAUDE.md sobre el nivel compartido
+  - [x] **Histórico de la tarea** — session log en `.claude/context/go_logs/go_logs-instalable-bugs-prod-03.md`
+- [x] Commit en la rama del plan: `go_logs-instalable-bugs-prod-03: <conventional commit>`
