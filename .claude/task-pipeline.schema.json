@@ -1,0 +1,133 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/drossan/claude-plugins/task-pipeline.schema.json",
+  "x-task-pipeline-schema-version": "1.0.0",
+  "title": "task-pipeline.yml",
+  "description": "Ayuda de editor (autocompletado/validación) para .claude/task-pipeline.yml del plugin task-pipeline. No es validación en runtime: las skills leen el YAML sin parser de schema. x-task-pipeline-schema-version (top-level, en este fichero de schema, no en el YAML de datos) es la clave-ancla que /doctor compara entre el schema materializado en un repo consumidor y el que trae la versión instalada del plugin para detectar drift.",
+  "type": "object",
+  "properties": {
+    "mode": {
+      "type": "string",
+      "enum": ["full", "legacy", "docs-only"],
+      "description": "Preset de defaults: full (TDD+docs+mutation-gate 80), legacy (TDD+docs, sin mutation-gate), docs-only (solo orquestación+docs)."
+    },
+    "stack": {
+      "type": "object",
+      "description": "Stack real del repo; las skills eligen comandos con esto en vez de asumir pnpm/Vitest/Stryker.",
+      "properties": {
+        "language": {
+          "type": "string",
+          "enum": ["typescript", "javascript", "other"]
+        },
+        "package-manager": {
+          "type": "string",
+          "enum": ["pnpm", "npm", "yarn", "none"]
+        },
+        "test-runner": {
+          "type": "string",
+          "enum": ["vitest", "jest", "node", "none"]
+        },
+        "mutation-tool": {
+          "type": "string",
+          "enum": ["stryker", "none"]
+        },
+        "packages": {
+          "type": "object",
+          "description": "Override por-package (monorepo poliglota). Herencia parcial: cada entrada pisa solo las claves que declara; el resto hereda el stack top-level.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "language": { "type": "string", "enum": ["typescript", "javascript", "python", "other"] },
+              "package-manager": { "type": "string", "enum": ["pnpm", "npm", "yarn", "pip", "none"] },
+              "test-runner": { "type": "string", "enum": ["vitest", "jest", "node", "pytest", "none"] },
+              "mutation-tool": { "type": "string", "enum": ["stryker", "mutmut", "mutation-command", "none"] }
+            }
+          }
+        }
+      }
+    },
+    "features": {
+      "type": "object",
+      "properties": {
+        "tdd": {
+          "type": "boolean",
+          "description": "Exigir tests/TDD en la DoD (1 test por escenario Gherkin)."
+        },
+        "closing-documentation": {
+          "type": "object",
+          "properties": {
+            "tsdoc": { "type": "boolean" },
+            "technical-docs": { "type": "boolean" },
+            "context-log": { "type": "boolean" }
+          }
+        },
+        "mutation-gate": {
+          "description": "false = sin gate; true = gate con umbral break:80; <int> = gate con ese umbral.",
+          "anyOf": [
+            { "type": "boolean" },
+            { "type": "integer", "minimum": 0, "maximum": 100 }
+          ]
+        },
+        "sdd": {
+          "type": "boolean",
+          "description": "Capa SDD (spec EARS + CU Gherkin + ADR MADR). Fail-safe: solo true booleano activa."
+        },
+        "caveman": {
+          "type": "string",
+          "enum": ["off", "lite", "full"],
+          "description": "Compresión opt-in del output del hilo principal. Fail-safe: cualquier valor no canónico se trata como off en runtime."
+        },
+        "github-tracking": {
+          "type": "object",
+          "description": "Proyección one-way md->GitHub (opt-in). Fail-safe: solo enabled:true activa.",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "repo": { "type": "string" },
+            "project": { "type": "integer" },
+            "assignee": {
+              "anyOf": [
+                { "type": "string" },
+                { "type": "boolean" }
+              ],
+              "description": "@me (default) = identidad gh que arranca; un login para fijar otro; false para no asignar."
+            },
+            "issue-type-plan": { "type": "string" }
+          }
+        },
+        "conventional-commits": {
+          "type": "boolean",
+          "description": "Formato <task-id>: <conventional commit>. Ausencia = ON (histórico)."
+        },
+        "git-automation": {
+          "type": "object",
+          "description": "Automatización de git (opt-in). Fail-safe: solo true booleano activa cada toggle.",
+          "properties": {
+            "auto-commit": { "type": "boolean" },
+            "auto-pr": { "type": "boolean", "description": "Requiere auto-commit: true." },
+            "co-author": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "models": {
+      "type": "object",
+      "description": "Modelo por fase con subagente: 3 siempre ruteables (design-review, scenario-coverage, fact-checker) + sdd-lint (condicional, solo con features.sdd on). Claves para fases inline o desconocidas se ignoran sin romper el routing.",
+      "properties": {
+        "design-review": { "$ref": "#/definitions/modelValue" },
+        "scenario-coverage": { "$ref": "#/definitions/modelValue" },
+        "fact-checker": { "$ref": "#/definitions/modelValue" },
+        "sdd-lint": { "$ref": "#/definitions/modelValue" }
+      },
+      "additionalProperties": { "$ref": "#/definitions/modelValue" }
+    }
+  },
+  "definitions": {
+    "modelValue": {
+      "description": "Alias conocido (autocompletado) o id de modelo libre (pass-through); nunca una lista.",
+      "anyOf": [
+        { "type": "string", "enum": ["opus", "sonnet", "haiku", "fable", "inherit"] },
+        { "type": "string" }
+      ]
+    }
+  }
+}

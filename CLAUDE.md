@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+@.claude/honesty-rules.md
+
 Este archivo proporciona guía a Claude Code (claude.ai/code) para trabajar con el código en este repositorio.
 
 ## Resumen del Proyecto
