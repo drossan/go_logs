@@ -2,13 +2,13 @@
 id: go_logs-instalable-bugs-prod-08
 package: go_logs
 plan: instalable-bugs-prod
-status: pending
+status: active
 priority: 2
 depends_on: [go_logs-instalable-bugs-prod-06]
 estimate: 5h
 actual:
 created: 2026-09-26
-updated: 2026-09-26
+updated: 2026-09-27
 ---
 
 # Sitio VitePress en `website/` con i18n y contenido migrado del wiki con snippets corregidos

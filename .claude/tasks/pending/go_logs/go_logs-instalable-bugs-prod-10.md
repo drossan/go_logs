@@ -32,6 +32,7 @@ Cierre del plan: las tres fuentes de documentación (`README.md`, `docs/wiki/`, 
   5. Anotar en el session log que esto prueba compilación e integración, no instalabilidad desde el proxy (eso va en la checklist post-tag).
 - **Checklist de release** copiada **en ambos sitios** (no es una alternativa: el plan y el README): al final del plan y en una sección "Release" del `README.md`: tag raíz, verificación en proxy, tag `slack/v3.1.0`, `release.yaml` en verde, activar Pages.
 - Marcar en el plan las casillas de las 10 tareas y añadir la nota retro (estimación vs real, sorpresas).
+- **Heredado de la tarea 08 (2026-09-27)**: `website/changelog.md` (y `es/`) ya cuenta la historia real (`v3.0.0`-`v3.0.4` consolidados, `v3.1.0` sin publicar); el changelog del README debe coincidir con él y la entrada `v3.1.0` del sitio se completa con lo que añadan 09-11. `docs/wiki/API-Reference*.md` y `Migration-v2-to-v3*.md` citan `TraceLog`/`DebugLog`/`Tracef`/`Debugf` como API v2 pero no existen (ya retirados en `website/`). `docs/wiki/Installation*.md`, `Configuration*.md`, `Hooks*.md` y `API-Reference.md` (`IsNotifierEnabled`) siguen con el texto de Slack de v3.0: copiar las notas de `SetNotifier`/`slack/v3` de `website/`.
 
 ## Fuera de alcance
 

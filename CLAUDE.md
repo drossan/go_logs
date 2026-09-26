@@ -50,8 +50,10 @@ go_logs/
 ├── hooks/                 # Hooks v3
 │   └── slack_hook.go      # SlackHook (v3 moderno)
 │
-└── slack/                 # ÚNICO submódulo: github.com/drossan/go_logs/slack/v3 (go.mod propio)
-    └── notifier.go        # slack.Notifier (NewNotifier, NewNotifierFromEnv)
+├── slack/                 # ÚNICO submódulo: github.com/drossan/go_logs/slack/v3 (go.mod propio)
+│   └── notifier.go        # slack.Notifier (NewNotifier, NewNotifierFromEnv)
+│
+└── website/               # Sitio de documentación VitePress (pnpm), no es código Go. Ver website/README.md
 ```
 
 ### Capas Principales
@@ -77,9 +79,14 @@ go_logs/
 │   └── notification.go    # Interfaz Notifier (v2 legacy)
 ├── hooks/                 # Hooks v3
 │   └── slack_hook.go      # SlackHook (v3 moderno)
-└── slack/                 # Submódulo github.com/drossan/go_logs/slack/v3
-    └── notifier.go        # slack.Notifier
+├── slack/                 # Submódulo github.com/drossan/go_logs/slack/v3
+│   └── notifier.go        # slack.Notifier
+└── website/               # Sitio VitePress (EN en /, ES en /es/, changelog), fuente canónica de la doc de usuario
 ```
+
+### Sitio de documentación (`website/`)
+
+VitePress 1.x con pnpm, `base: '/go_logs/'` (GitHub Pages). `pnpm --dir website install && pnpm --dir website build` genera `website/.vitepress/dist`; un enlace interno roto hace fallar el build (no se usa `ignoreDeadLinks`). Contenido copiado de `docs/wiki/` (que se sigue sincronizando con el wiki de GitHub pero no se edita primero) más `changelog.md` en los dos idiomas. `website/pnpm-workspace.yaml` aprueba el build script de `esbuild` (`allowBuilds`), sin él `pnpm install` de pnpm 11 sale con error. No añadir `.go` en `website/`.
 
 ### Patrones Arquitectónicos
 
