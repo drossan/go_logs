@@ -459,7 +459,7 @@ handler := signal.NewSIGHUPHandler(rotator, syscall.SIGUSR1, syscall.SIGUSR2)
 
 ```bash
 # Nivel de log (syslog-style)
-LOG_LEVEL=info              # trace, debug, info, warn, error, fatal, silent
+LOG_LEVEL=info              # trace, debug, info, warn, error, fatal, silent (default: info)
 
 # Formato de salida
 LOG_FORMAT=text             # text (dev) o json (prod)
@@ -484,6 +484,12 @@ NOTIFICATION_WARNING_LOG=1
 NOTIFICATION_INFO_LOG=1
 NOTIFICATION_SUCCESS_LOG=1
 ```
+
+Todas son opcionales. `Init()` (y la auto-inicialización de la API v2) **nunca termina el proceso**:
+
+- Variable vacía o ausente → se usa el valor por defecto sin avisar (`LOG_LEVEL=info`, booleanos a `false`).
+- Valor no válido (p. ej. `SAVE_LOG_FILE=quizas` o `LOG_LEVEL=loud`) → valor por defecto + aviso por stderr con el nombre de la variable y el valor recibido.
+- Fichero de log que no se puede abrir → aviso por stderr y guardado en fichero desactivado.
 
 ### Configuración Programática (v3)
 

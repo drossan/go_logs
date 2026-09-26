@@ -2,11 +2,11 @@
 id: go_logs-instalable-bugs-prod-02
 package: go_logs
 plan: instalable-bugs-prod
-status: pending
+status: done
 priority: 1
 depends_on: [go_logs-instalable-bugs-prod-01]
 estimate: 2h
-actual:
+actual: 0.1h
 created: 2026-09-26
 updated: 2026-09-26
 ---
@@ -134,14 +134,14 @@ Feature: La configuración por entorno nunca termina el proceso del consumidor
 
 ## Definition of Done
 
-- [ ] Tests escritos ANTES de la implementación (TDD) — Red → Green → Refactor
-- [ ] Cada escenario Gherkin tiene al menos un test (camino feliz + bordes/errores)
-- [ ] Todos los tests en verde: `go test ./...`
-- [ ] Spec cumplida; lo declarado en `Provides` queda realmente disponible para las tareas dependientes
-- [ ] Lint / format / typecheck OK: `gofmt -l config.go config_test.go` sin salida; `go vet ./...` limpio
-- [ ] Gate de `fact-checker` superado — afirmaciones de la sesión verificadas (INCORRECTO bloquea; NO VERIFICABLE = aviso a reconocer), antes de commit/resumen  · no-negociable
-- [ ] Documentación actualizada — tres capas:
-  - [ ] **godoc en el código** — `envBool`, `Init()` (nunca termina el proceso; defaults), `initPersistentLogFile`
-  - [ ] **Doc técnica (contexto)** — sección "Variables de entorno" de README y CLAUDE.md: vacío = default, inválido = aviso, nivel Info por defecto
-  - [ ] **Histórico de la tarea** — session log en `.claude/context/go_logs/go_logs-instalable-bugs-prod-02.md`
-- [ ] Commit en la rama del plan: `go_logs-instalable-bugs-prod-02: <conventional commit>`
+- [x] Tests escritos ANTES de la implementación (TDD) — Red → Green → Refactor
+- [x] Cada escenario Gherkin tiene al menos un test (camino feliz + bordes/errores)
+- [x] Todos los tests en verde: `go test ./...`
+- [x] Spec cumplida; lo declarado en `Provides` queda realmente disponible para las tareas dependientes
+- [x] Lint / format / typecheck OK: `gofmt -l config.go config_test.go` sin salida; `go vet ./...` limpio
+- [x] Gate de `fact-checker` superado — afirmaciones de la sesión verificadas (INCORRECTO bloquea; NO VERIFICABLE = aviso a reconocer), antes de commit/resumen  · no-negociable
+- [x] Documentación actualizada — tres capas:
+  - [x] **godoc en el código** — `envBool`, `Init()` (nunca termina el proceso; defaults), `initPersistentLogFile`
+  - [x] **Doc técnica (contexto)** — sección "Variables de entorno" de README y CLAUDE.md: vacío = default, inválido = aviso, nivel Info por defecto
+  - [x] **Histórico de la tarea** — session log en `.claude/context/go_logs/go_logs-instalable-bugs-prod-02.md`
+- [x] Commit en la rama del plan: `go_logs-instalable-bugs-prod-02: <conventional commit>`

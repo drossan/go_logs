@@ -138,7 +138,7 @@ go_logs.Infof("formatted %s", "message")
 
 ```bash
 # Nivel de log (syslog-style)
-LOG_LEVEL=info              # trace, debug, info, warn, error, fatal, silent
+LOG_LEVEL=info              # trace, debug, info, warn, error, fatal, silent (default: info)
 
 # Formato de salida
 LOG_FORMAT=text             # text (dev) o json (prod)
@@ -156,6 +156,12 @@ LOG_MAX_BACKUPS=5           # Archivos backup a mantener
 SLACK_TOKEN=xoxb-xxx
 SLACK_CHANNEL_ID=C123456
 ```
+
+Todas son opcionales. `Init()` (y la auto-inicialización de la API v2) **nunca termina el proceso**:
+
+- Variable vacía o ausente → se usa el valor por defecto sin avisar (`LOG_LEVEL=info`, booleanos a `false`).
+- Valor no válido (p. ej. `SAVE_LOG_FILE=quizas` o `LOG_LEVEL=loud`) → valor por defecto + aviso por stderr con el nombre de la variable y el valor recibido.
+- Fichero de log que no se puede abrir → aviso por stderr y guardado en fichero desactivado.
 
 ### Configuración Programática (v3)
 

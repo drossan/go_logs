@@ -2,16 +2,24 @@ package go_logs
 
 import (
 	"bufio"
-	"github.com/drossan/go_logs/v3/adapters"
+	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/drossan/go_logs/v3/adapters"
 )
 
 var isInit bool
+
+// warnOutput receives the configuration warnings emitted by Init() (invalid
+// environment values, log file that cannot be opened). It is a variable so tests
+// can capture it.
+var warnOutput io.Writer = os.Stderr
 
 var saveLogFile bool
 var logFileName string
@@ -56,7 +64,7 @@ const (
 
 // logLevel stores the configured logging threshold
 // Messages with level >= logLevel will be logged
-var logLevel int // Default: 0 (disabled if not set)
+var logLevel int // Set by loadLogLevel(); LevelInfo when LOG_LEVEL is empty or invalid
 
 // useLegacySystem tracks whether the old notification system is configured
 // If true, legacy system takes precedence over LOG_LEVEL for backward compatibility
@@ -68,6 +76,7 @@ var useLegacySystem bool
 // from environment variables and sets up file logging and Slack notifications if enabled.
 //
 // Environment Variables:
+//   - LOG_LEVEL: Logging threshold (trace, debug, info, warn, error, fatal, silent; default: info)
 //   - SAVE_LOG_FILE: Enable file logging (0 or 1, default: 0)
 //   - LOG_FILE_NAME: Name of the log file (default: "log.txt")
 //   - LOG_FILE_PATH: Directory path for log files (default: current directory)
@@ -88,17 +97,19 @@ var useLegacySystem bool
 //	go_logs.Init()
 //	go_logs.InfoLog("Application started")
 //
+// Init never terminates the process. An empty or unset variable silently takes
+// its default; a value that cannot be parsed takes its default and writes a
+// warning to stderr naming the variable and the value received. If the log file
+// cannot be opened, a warning is written to stderr and file logging is disabled.
+// With an empty environment the effective level is Info, so InfoLog, SuccessLog,
+// WarningLog, ErrorLog and FatalLog pass the level filter.
+//
 // Note: Init() can be called multiple times safely, but subsequent calls may not
 // reinitialize components that are already set up (like the persistent log file).
 func Init() {
-	var err error // Issue #3 Fix: Local error variable instead of global
-
 	isInit = true
 
-	saveLogFile, err = strconv.ParseBool(os.Getenv("SAVE_LOG_FILE"))
-	if err != nil {
-		log.Fatalf("Error parsing SAVE_LOG_FILE: %v", err)
-	}
+	saveLogFile = envBool("SAVE_LOG_FILE", false)
 
 	if saveLogFile {
 		logFileName = os.Getenv("LOG_FILE_NAME")
@@ -113,16 +124,29 @@ func Init() {
 
 	loadNotificationsConfig()
 
-	notificationsEnabled, err = strconv.ParseBool(os.Getenv("NOTIFICATIONS_SLACK_ENABLED"))
-	if err != nil {
-		log.Fatalf("Error parsing NOTIFICATIONS_SLACK_ENABLED: %v", err)
-	}
+	notificationsEnabled = envBool("NOTIFICATIONS_SLACK_ENABLED", false)
 
 	if notificationsEnabled {
 		loadSlackConfig()
 	}
 
 	loadLogLevel()
+}
+
+// envBool lee una variable de entorno booleana. Vacía o ausente devuelve def en
+// silencio; un valor no reconocido por strconv.ParseBool devuelve def y escribe un
+// aviso en stderr con el nombre de la variable y el valor recibido.
+func envBool(key string, def bool) bool {
+	raw := os.Getenv(key)
+	if raw == "" {
+		return def
+	}
+	v, err := strconv.ParseBool(raw)
+	if err != nil {
+		fmt.Fprintf(warnOutput, "go_logs: variable de entorno %s=%q no válida, se usa el valor por defecto (%t)\n", key, raw, def)
+		return def
+	}
+	return v
 }
 
 // getNumericLevel converts a log level string to its numeric value
@@ -135,7 +159,7 @@ func getNumericLevel(level string) int {
 		return LevelError
 	case "WARNING", "WARN":
 		return LevelWarn
-	case "INFO":
+	case "INFO", "SUCCESS":
 		return LevelInfo
 	case "DEBUG":
 		return LevelDebug
@@ -146,16 +170,18 @@ func getNumericLevel(level string) int {
 	}
 }
 
-// loadLogLevel loads the LOG_LEVEL environment variable and sets the logging threshold
-// Supports: trace, debug, info, warn, error, fatal, silent (case-insensitive)
+// loadLogLevel loads the LOG_LEVEL environment variable and sets the logging threshold.
+// Supports: trace, debug, info, warn, error, fatal, silent (case-insensitive).
+// An empty value selects LevelInfo silently; an unknown value selects LevelInfo
+// and writes a warning to warnOutput.
 func loadLogLevel() {
-	levelStr := os.Getenv("LOG_LEVEL")
-	if levelStr == "" {
-		return // Not configured, will use old system
+	raw := os.Getenv("LOG_LEVEL")
+	if raw == "" {
+		logLevel = LevelInfo
+		return
 	}
 
-	levelStr = strings.ToLower(levelStr)
-	switch levelStr {
+	switch strings.ToLower(raw) {
 	case "trace":
 		logLevel = LevelTrace
 	case "debug":
@@ -171,7 +197,7 @@ func loadLogLevel() {
 	case "silent", "none", "disable":
 		logLevel = LevelSilent
 	default:
-		log.Printf("Warning: Unknown LOG_LEVEL '%s', using info (30)", levelStr)
+		fmt.Fprintf(warnOutput, "go_logs: variable de entorno LOG_LEVEL=%q no válida, se usa el valor por defecto (info)\n", raw)
 		logLevel = LevelInfo
 	}
 }
@@ -194,32 +220,11 @@ func loadLogFormat() Formatter {
 }
 
 func loadNotificationsConfig() {
-	var err error // Issue #3 Fix: Local error variable instead of global
-
-	notificationLogFatal, err = strconv.ParseBool(os.Getenv("NOTIFICATION_FATAL_LOG"))
-	if err != nil {
-		log.Fatalf("Error parsing NOTIFICATION_FATAL_LOG: %v", err)
-	}
-
-	notificationLogError, err = strconv.ParseBool(os.Getenv("NOTIFICATION_ERROR_LOG"))
-	if err != nil {
-		log.Fatalf("Error parsing NOTIFICATION_ERROR_LOG: %v", err)
-	}
-
-	notificationLogWarning, err = strconv.ParseBool(os.Getenv("NOTIFICATION_WARNING_LOG"))
-	if err != nil {
-		log.Fatalf("Error parsing NOTIFICATION_WARNING_LOG: %v", err)
-	}
-
-	notificationLogInfo, err = strconv.ParseBool(os.Getenv("NOTIFICATION_INFO_LOG"))
-	if err != nil {
-		log.Fatalf("Error parsing NOTIFICATION_INFO_LOG: %v", err)
-	}
-
-	notificationLogSuccess, err = strconv.ParseBool(os.Getenv("NOTIFICATION_SUCCESS_LOG"))
-	if err != nil {
-		log.Fatalf("Error parsing NOTIFICATION_SUCCESS_LOG: %v", err)
-	}
+	notificationLogFatal = envBool("NOTIFICATION_FATAL_LOG", false)
+	notificationLogError = envBool("NOTIFICATION_ERROR_LOG", false)
+	notificationLogWarning = envBool("NOTIFICATION_WARNING_LOG", false)
+	notificationLogInfo = envBool("NOTIFICATION_INFO_LOG", false)
+	notificationLogSuccess = envBool("NOTIFICATION_SUCCESS_LOG", false)
 
 	// Detect if legacy system is configured (any notification level explicitly enabled)
 	// This ensures backward compatibility by taking precedence over LOG_LEVEL
@@ -281,7 +286,10 @@ func loadSlackConfig() {
 	}
 }
 
-// Issue #9 Fix: Initialize persistent log file with buffering (called once via sync.Once)
+// initPersistentLogFile opens the persistent log file with buffering (called once
+// via sync.Once, Issue #9). If the file cannot be opened it writes a warning to
+// warnOutput and disables file logging (saveLogFile = false, logWriter = nil)
+// instead of terminating the process.
 func initPersistentLogFile() {
 	// Issue #4 Fix: Use filepath.Join() for portable path construction
 	// Handle empty logFilePath gracefully
@@ -297,7 +305,11 @@ func initPersistentLogFile() {
 	var err error
 	logFile, err = os.OpenFile(fullPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
-		log.Fatalf("Error opening log file: %v", err)
+		fmt.Fprintf(warnOutput, "go_logs: no se puede abrir el fichero de log %s: %v; guardado en fichero desactivado\n", fullPath, err)
+		saveLogFile = false
+		logFile = nil
+		logWriter = nil
+		return
 	}
 
 	// Create buffered writer for performance (Issue #9)
@@ -338,7 +350,7 @@ func closeLogFile(file *os.File) {
 		err := logFile.Close()
 		// Idempotent: don't fail on "already closed" errors
 		if err != nil && !os.IsNotExist(err) {
-			// Use log.Printf instead of log.Fatalf to avoid terminating tests
+			// Use log.Printf: closing errors must never terminate the process
 			// Errors closing are logged but not fatal
 			log.Printf("Error closing log file (may already be closed): %v", err)
 		}
