@@ -50,7 +50,7 @@
 
 **Docs actualizadas**: godoc de `envBool`, `warnOutput`, `Init()`, `loadLogLevel`, `initPersistentLogFile`; sección "Variables de Entorno" de `README.md` y `CLAUDE.md` (vacío = default, inválido = aviso, `LOG_LEVEL` default info, fichero no abrible). Lo pide la DoD.
 
-**Ficheros**: `config.go`, `config_test.go`, `README.md`, `CLAUDE.md`, task file, plan, este log. Commit: ver `git log` (`go_logs-instalable-bugs-prod-02: fix(config): …`).
+**Ficheros**: `config.go`, `config_test.go`, `README.md`, `CLAUDE.md`, task file, plan, este log. Commit `8b0c844`: `go_logs-instalable-bugs-prod-02: fix(config): tolerant Init() without log.Fatalf, stderr warnings, Info default level`.
 
 **Tiempo real**: ~0.1 h (22:31–22:37) frente a 2 h estimadas.
 
