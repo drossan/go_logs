@@ -303,3 +303,41 @@ func TestCallerWithCtx(t *testing.T) {
 		t.Errorf("Output should contain caller info, got: %s", output)
 	}
 }
+
+// TestPackageFromFuncName verifies package/function extraction from fully
+// qualified runtime function names, including module major-version suffixes.
+func TestPackageFromFuncName(t *testing.T) {
+	tests := []struct {
+		fnName string
+		pkg    string
+		fn     string
+	}{
+		{"github.com/drossan/go_logs/v3.TestGetCaller", "go_logs", "TestGetCaller"},
+		{"github.com/drossan/go_logs/v3.(*LoggerImpl).Log", "go_logs", "(*LoggerImpl).Log"},
+		{"github.com/drossan/go_logs/v3/async.(*Logger).With", "async", "(*Logger).With"},
+		{"example.com/x/v2.Func", "x", "Func"},
+		{"example.com/v2tools.Func", "v2tools", "Func"},
+		{"github.com/u/pkg.Func", "pkg", "Func"},
+		{"main.main", "main", "main"},
+		{"github.com/drossan/go_logs/v1.Func", "v1", "Func"},
+		{"github.com/example/pkg/v10.Func", "pkg", "Func"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.fnName, func(t *testing.T) {
+			pkg, fn := packageFromFuncName(tt.fnName)
+			if pkg != tt.pkg || fn != tt.fn {
+				t.Errorf("packageFromFuncName(%q) = (%q, %q), want (%q, %q)", tt.fnName, pkg, fn, tt.pkg, tt.fn)
+			}
+		})
+	}
+}
+
+// TestPackageFromFuncName_Generic verifies that a generic instantiation in the
+// function name does not break extraction nor panic.
+func TestPackageFromFuncName_Generic(t *testing.T) {
+	pkg, _ := packageFromFuncName("github.com/drossan/go_logs/v3.List[go.shape.int].Get")
+	if pkg != "go_logs" {
+		t.Errorf("expected package go_logs, got %q", pkg)
+	}
+}

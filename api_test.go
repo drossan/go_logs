@@ -416,10 +416,10 @@ func TestBackwardCompatibility(t *testing.T) {
 	isInit = true
 	notificationSettingsMutex.Lock()
 	notificationSettings = map[string]bool{
-		"INFO":     false,
-		"ERROR":    false,
-		"SUCCESS":  false,
-		"WARNING":  false,
+		"INFO":    false,
+		"ERROR":   false,
+		"SUCCESS": false,
+		"WARNING": false,
 	}
 	notificationSettingsMutex.Unlock()
 

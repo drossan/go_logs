@@ -1,6 +1,7 @@
 package go_logs
 
 import (
+	"errors"
 	"io"
 	"sync"
 )
@@ -135,24 +136,45 @@ func (mw *MultiWriter) Close() error {
 	return lastErr
 }
 
-// Sync syncs all writers that implement the Syncer interface.
+// Syncer is implemented by writers that can commit their data to stable
+// storage (flush + fsync for the file writers of this package).
 type Syncer interface {
 	Sync() error
 }
 
-// Sync calls Sync on all writers that implement Syncer.
+// Flush implements Flusher: it calls Flush on every writer that implements
+// Flusher. All writers are flushed even if one fails; the errors are joined
+// with errors.Join (nil if none failed).
+func (mw *MultiWriter) Flush() error {
+	mw.mu.RLock()
+	defer mw.mu.RUnlock()
+
+	var errs []error
+	for _, w := range mw.writers {
+		if f, ok := w.(Flusher); ok {
+			if err := f.Flush(); err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+	return errors.Join(errs...)
+}
+
+// Sync calls Sync on every writer that implements Syncer. All writers are
+// synced even if one fails; the errors are joined with errors.Join (nil if
+// none failed), so Logger.Sync can ignore a terminal's error without hiding
+// the real failure of another writer.
 func (mw *MultiWriter) Sync() error {
 	mw.mu.RLock()
 	defer mw.mu.RUnlock()
 
-	var lastErr error
+	var errs []error
 	for _, w := range mw.writers {
 		if syncer, ok := w.(Syncer); ok {
 			if err := syncer.Sync(); err != nil {
-				lastErr = err
+				errs = append(errs, err)
 			}
 		}
 	}
-
-	return lastErr
+	return errors.Join(errs...)
 }

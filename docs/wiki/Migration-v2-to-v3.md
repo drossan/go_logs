@@ -22,7 +22,7 @@ This guide helps you migrate from go_logs v2 (legacy global functions) to v3 (mo
 
 ```go
 // v2 code - still works in v3!
-import "github.com/drossan/go_logs"
+import "github.com/drossan/go_logs/v3"
 
 func main() {
     go_logs.Init()
@@ -34,7 +34,7 @@ func main() {
 You can use v2 and v3 APIs together:
 
 ```go
-import "github.com/drossan/go_logs"
+import "github.com/drossan/go_logs/v3"
 
 func main() {
     // v2 API
@@ -136,7 +136,7 @@ Completely migrate to v3 API for all new features.
 ```go
 package main
 
-import "github.com/drossan/go_logs"
+import "github.com/drossan/go_logs/v3"
 
 func main() {
     go_logs.Init()
@@ -151,7 +151,7 @@ package main
 
 import (
     "os"
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func main() {
@@ -410,7 +410,7 @@ func loggingMiddleware(logger go_logs.Logger) func(http.Handler) http.Handler {
 Make sure you're using v3:
 
 ```bash
-go get github.com/drossan/go_logs@latest
+go get github.com/drossan/go_logs/v3@latest
 ```
 
 ### Both v2 and v3 Output

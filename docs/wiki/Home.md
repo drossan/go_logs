@@ -9,7 +9,7 @@
 
 A modern, structured logging library for Go with zero external dependencies (except optional Slack integration).
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/drossan/go_logs.svg)](https://pkg.go.dev/github.com/drossan/go_logs)
+[![Go Reference](https://pkg.go.dev/badge/github.com/drossan/go_logs/v3.svg)](https://pkg.go.dev/github.com/drossan/go_logs/v3)
 [![Go Report Card](https://goreportcard.com/badge/github.com/drossan/go_logs)](https://goreportcard.com/report/github.com/drossan/go_logs)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -50,7 +50,7 @@ The library maintains **100% backward compatibility** between v2 (legacy global 
 ### v2 Example (Legacy - Still Supported)
 
 ```go
-import "github.com/drossan/go_logs"
+import "github.com/drossan/go_logs/v3"
 
 func main() {
     go_logs.Init() // Optional, auto-initializes
@@ -64,7 +64,7 @@ func main() {
 ```go
 import (
     "os"
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func main() {
@@ -97,7 +97,7 @@ func main() {
 ## Installation
 
 ```bash
-go get github.com/drossan/go_logs@latest
+go get github.com/drossan/go_logs/v3@latest
 ```
 
 See [Installation](Installation.md) for detailed instructions.
@@ -212,4 +212,4 @@ MIT License - see [LICENSE](../LICENSE) for details.
 
 - **Issues**: [GitHub Issues](https://github.com/drossan/go_logs/issues)
 - **Documentation**: This wiki
-- **Go Reference**: [pkg.go.dev](https://pkg.go.dev/github.com/drossan/go_logs)
+- **Go Reference**: [pkg.go.dev](https://pkg.go.dev/github.com/drossan/go_logs/v3)

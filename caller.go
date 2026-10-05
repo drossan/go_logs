@@ -28,15 +28,7 @@ func GetCaller(skip int) *CallerInfo {
 	fn := runtime.FuncForPC(pc)
 	var fnName, pkgName string
 	if fn != nil {
-		fnName = fn.Name()
-		// Extract package from function name (e.g., "github.com/user/pkg.Func" -> "pkg")
-		if idx := strings.LastIndex(fnName, "/"); idx >= 0 {
-			fnName = fnName[idx+1:]
-		}
-		if idx := strings.Index(fnName, "."); idx >= 0 {
-			pkgName = fnName[:idx]
-			fnName = fnName[idx+1:]
-		}
+		pkgName, fnName = packageFromFuncName(fn.Name())
 	}
 
 	return &CallerInfo{
@@ -46,6 +38,59 @@ func GetCaller(skip int) *CallerInfo {
 		Func:     fnName,
 		Package:  pkgName,
 	}
+}
+
+// packageFromFuncName splits a fully qualified runtime function name
+// (as returned by runtime.Func.Name) into its package name and the function
+// name relative to that package.
+//
+// Examples:
+//
+//	"github.com/user/pkg.Func"                      -> ("pkg", "Func")
+//	"github.com/drossan/go_logs/v3.(*T).Log"        -> ("go_logs", "(*T).Log")
+//	"github.com/drossan/go_logs/v3/async.(*L).With" -> ("async", "(*L).With")
+//	"main.main"                                     -> ("main", "main")
+//
+// When the last path element is a module major-version suffix (vN with
+// N >= 2, per Go's semantic import versioning), the package name is taken
+// from the preceding path element. Generic instantiations such as
+// "pkg.List[go.shape.int].Get" are handled by ignoring everything from the
+// first '[' when locating the package path. If the name contains no '.',
+// pkg is empty and fn is the last path element.
+func packageFromFuncName(fnName string) (pkg, fn string) {
+	path := fnName
+	if idx := strings.IndexByte(path, '['); idx >= 0 {
+		path = path[:idx]
+	}
+	lastSlash := strings.LastIndexByte(path, '/')
+	rest := fnName[lastSlash+1:]
+
+	dot := strings.IndexByte(rest, '.')
+	if dot < 0 {
+		return "", rest
+	}
+	pkg, fn = rest[:dot], rest[dot+1:]
+
+	if lastSlash >= 0 && isMajorVersionSuffix(pkg) {
+		prefix := fnName[:lastSlash]
+		pkg = prefix[strings.LastIndexByte(prefix, '/')+1:]
+	}
+	return pkg, fn
+}
+
+// isMajorVersionSuffix reports whether s is a module major-version path
+// element "vN" with N >= 2 and no leading zero (e.g. "v2", "v10", not "v1",
+// "v01" or "v2tools").
+func isMajorVersionSuffix(s string) bool {
+	if len(s) < 2 || s[0] != 'v' || s[1] == '0' {
+		return false
+	}
+	for i := 1; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return s != "v1"
 }
 
 // String returns a formatted string representation (file:line)

@@ -110,9 +110,9 @@ func (s *Sampler) Reset() {
 
 // SamplingWriter wraps an io.Writer with sampling
 type SamplingWriter struct {
-	writer   io.Writer
-	sampler  *Sampler
-	onDrop   func(dropped int) // Called when messages are dropped
+	writer  io.Writer
+	sampler *Sampler
+	onDrop  func(dropped int) // Called when messages are dropped
 }
 
 // NewSamplingWriter creates a writer with sampling
@@ -144,6 +144,24 @@ func (sw *SamplingWriter) Write(p []byte) (n int, err error) {
 	}
 
 	return len(p), nil
+}
+
+// Flush implements Flusher by flushing the wrapped writer if it implements
+// Flusher; otherwise it is a no-op.
+func (sw *SamplingWriter) Flush() error {
+	if f, ok := sw.writer.(Flusher); ok {
+		return f.Flush()
+	}
+	return nil
+}
+
+// Sync syncs the wrapped writer if it implements Syncer; otherwise it is a
+// no-op.
+func (sw *SamplingWriter) Sync() error {
+	if s, ok := sw.writer.(Syncer); ok {
+		return s.Sync()
+	}
+	return nil
 }
 
 // Close closes the underlying writer if it implements io.Closer

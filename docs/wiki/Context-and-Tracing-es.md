@@ -154,7 +154,7 @@ import (
     "net/http"
     "os"
 
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
     "github.com/google/uuid"
 )
 

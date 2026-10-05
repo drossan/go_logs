@@ -1,3 +1,5 @@
+version: 2
+
 # Preparación: Limpieza y generación de archivos necesarios
 before:
   hooks:
@@ -14,7 +16,7 @@ release:
 
 # Configuración de changelog
 changelog:
-  skip: false
+  disable: false
   filters:
     exclude:
       - '^docs:'

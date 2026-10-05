@@ -24,7 +24,7 @@ package main
 
 import (
     "os"
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func main() {
@@ -50,7 +50,7 @@ package main
 import (
     "errors"
     "os"
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func main() {
@@ -101,7 +101,7 @@ package main
 import (
     "os"
     "time"
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func main() {
@@ -139,7 +139,7 @@ package main
 
 import (
     "os"
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func main() {
@@ -181,7 +181,7 @@ import (
     "net/http"
     "os"
 
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 // SlackHook sends error logs to Slack
@@ -264,7 +264,7 @@ import (
     "os"
     "time"
 
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
     "github.com/google/uuid"
 )
 
@@ -396,7 +396,7 @@ package main
 import (
     "context"
 
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
     "google.golang.org/grpc"
     "google.golang.org/grpc/metadata"
 )
@@ -479,7 +479,7 @@ import (
     "os"
     "time"
 
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 type Job struct {
@@ -585,7 +585,7 @@ package logging
 
 import (
     "os"
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 var baseLogger go_logs.Logger
@@ -626,7 +626,7 @@ package main
 import (
     "net/http"
     "github.com/google/uuid"
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func handleRequest(w http.ResponseWriter, r *http.Request) {
@@ -680,7 +680,7 @@ import (
     "bytes"
     "testing"
 
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func TestSomething(t *testing.T) {
@@ -712,7 +712,7 @@ import (
     "bytes"
     "testing"
 
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 // TestLogger creates a logger that captures output for testing
@@ -747,7 +747,7 @@ package main
 
 import (
     "testing"
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 // MockLogger captures log calls for verification

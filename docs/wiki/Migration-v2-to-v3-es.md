@@ -24,7 +24,7 @@ Esta guia te ayuda a migrar de go_logs v2 (funciones globales legacy) a v3 (inte
 
 ```go
 // Codigo v2 - todavia funciona en v3!
-import "github.com/drossan/go_logs"
+import "github.com/drossan/go_logs/v3"
 
 func main() {
     go_logs.Init()
@@ -36,7 +36,7 @@ func main() {
 Puedes usar APIs v2 y v3 juntas:
 
 ```go
-import "github.com/drossan/go_logs"
+import "github.com/drossan/go_logs/v3"
 
 func main() {
     // API v2
@@ -138,7 +138,7 @@ Migra completamente a la API v3 para todas las nuevas features.
 ```go
 package main
 
-import "github.com/drossan/go_logs"
+import "github.com/drossan/go_logs/v3"
 
 func main() {
     go_logs.Init()
@@ -153,7 +153,7 @@ package main
 
 import (
     "os"
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func main() {

@@ -1,7 +1,11 @@
 package go_logs
 
 import (
+	"bytes"
+	"log"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -229,123 +233,12 @@ func TestLogFilePathConstruction(t *testing.T) {
 	}
 }
 
-// TestLoadSlackConfig verifies loadSlackConfig initializes Slack notifier
-// Issue #7: Tests credential validation and graceful degradation
-func TestLoadSlackConfig(t *testing.T) {
-	t.Run("Valid credentials initializes notifier", func(t *testing.T) {
-		// Setup: Valid Slack credentials
-		os.Setenv("SLACK_TOKEN", "xoxb-test-token")
-		os.Setenv("SLACK_CHANNEL_ID", "C1234567890")
-		defer func() {
-			os.Unsetenv("SLACK_TOKEN")
-			os.Unsetenv("SLACK_CHANNEL_ID")
-		}()
-
-		// Call function under test
-		loadSlackConfig()
-
-		// Verify notifier was initialized
-		if notifier == nil {
-			t.Error("Expected notifier to be initialized with valid credentials")
-		}
-
-		if !IsNotifierEnabled() {
-			t.Error("Expected notifier to be enabled with valid credentials")
-		}
-	})
-
-	t.Run("Missing token disables notifier gracefully", func(t *testing.T) {
-		// Setup: Missing token (only channel)
-		os.Unsetenv("SLACK_TOKEN")
-		os.Setenv("SLACK_CHANNEL_ID", "C1234567890")
-		defer func() {
-			os.Unsetenv("SLACK_CHANNEL_ID")
-		}()
-
-		// Call function under test
-		loadSlackConfig()
-
-		// Verify notifier exists but is disabled
-		if notifier == nil {
-			t.Error("Expected notifier to be created (but disabled)")
-		}
-
-		if IsNotifierEnabled() {
-			t.Error("Expected notifier to be disabled when token is missing")
-		}
-	})
-
-	t.Run("Missing channel disables notifier gracefully", func(t *testing.T) {
-		// Setup: Missing channel (only token)
-		os.Setenv("SLACK_TOKEN", "xoxb-test-token")
-		os.Unsetenv("SLACK_CHANNEL_ID")
-		defer func() {
-			os.Unsetenv("SLACK_TOKEN")
-		}()
-
-		// Call function under test
-		loadSlackConfig()
-
-		// Verify notifier exists but is disabled
-		if notifier == nil {
-			t.Error("Expected notifier to be created (but disabled)")
-		}
-
-		if IsNotifierEnabled() {
-			t.Error("Expected notifier to be disabled when channel is missing")
-		}
-	})
-
-	t.Run("Both missing disables notifier", func(t *testing.T) {
-		// Setup: No credentials at all
-		os.Unsetenv("SLACK_TOKEN")
-		os.Unsetenv("SLACK_CHANNEL_ID")
-
-		// Call function under test
-		loadSlackConfig()
-
-		// Verify notifier exists but is disabled
-		if notifier == nil {
-			t.Error("Expected notifier to be created (but disabled)")
-		}
-
-		if IsNotifierEnabled() {
-			t.Error("Expected notifier to be disabled when both credentials are missing")
-		}
-	})
-}
-
-// TestLoadSlackConfigBackwardCompatibility verifies support for typo version
-// Issue #8: SLACK_CHANEL_ID (typo) should work with warning
-func TestLoadSlackConfigBackwardCompatibility(t *testing.T) {
-	// Setup: Use typo version only
-	os.Setenv("SLACK_TOKEN", "xoxb-test-token")
-	os.Setenv("SLACK_CHANEL_ID", "C1234567890") // Typo version
-	os.Unsetenv("SLACK_CHANNEL_ID")             // Ensure correct version is NOT set
-	defer func() {
-		os.Unsetenv("SLACK_TOKEN")
-		os.Unsetenv("SLACK_CHANEL_ID")
-	}()
-
-	// Call function under test
-	loadSlackConfig()
-
-	// Verify notifier is enabled (backward compatibility works)
-	if notifier == nil {
-		t.Fatal("Expected notifier to be created")
-	}
-
-	if !IsNotifierEnabled() {
-		t.Error("Expected notifier to be enabled with typo version (backward compatibility)")
-	}
-}
-
 // TestLoadLogLevel verifies LOG_LEVEL environment variable loading
 func TestLoadLogLevel(t *testing.T) {
 	tests := []struct {
-		name        string
-		logLevel    string
-		expected    int
+		name     string
+		logLevel string
+		expected int
 	}{
 		{"Trace level", "trace", LevelTrace},
 		{"Debug level", "debug", LevelDebug},
@@ -357,7 +250,7 @@ func TestLoadLogLevel(t *testing.T) {
 		{"Silent level", "silent", LevelSilent},
 		{"None level", "none", LevelSilent},
 		{"Disable level", "disable", LevelSilent},
-		{"Empty string", "", 0},
+		{"Empty string", "", LevelInfo},
 	}
 
 	for _, tt := range tests {
@@ -433,10 +326,10 @@ func TestGetNumericLevel(t *testing.T) {
 // Messages with level >= configured level should be logged
 func TestLogLevelThreshold(t *testing.T) {
 	tests := []struct {
-		name          string
+		name            string
 		configuredLevel string
-		messageLevel   string
-		shouldLog      bool
+		messageLevel    string
+		shouldLog       bool
 	}{
 		{"Info level logs info and above", "info", "INFO", true},
 		{"Info level logs error", "info", "ERROR", true},
@@ -511,7 +404,7 @@ func TestLegacySystemPrecedence(t *testing.T) {
 	os.Setenv("NOTIFICATION_WARNING_LOG", "0")
 	os.Setenv("NOTIFICATION_INFO_LOG", "0")
 	os.Setenv("NOTIFICATION_SUCCESS_LOG", "0") // Set explicitly to avoid ParseBool error
-	os.Setenv("LOG_LEVEL", "info") // New system would log INFO
+	os.Setenv("LOG_LEVEL", "info")             // New system would log INFO
 	os.Setenv("SAVE_LOG_FILE", "0")
 	os.Setenv("NOTIFICATIONS_SLACK_ENABLED", "0")
 	defer func() {
@@ -599,10 +492,10 @@ func TestLogLevelOnly(t *testing.T) {
 		level    string
 		expected bool
 	}{
-		{"FATAL", true},   // >= 50
-		{"ERROR", true},   // >= 50
+		{"FATAL", true},    // >= 50
+		{"ERROR", true},    // >= 50
 		{"WARNING", false}, // < 50
-		{"INFO", false},   // < 50
+		{"INFO", false},    // < 50
 		{"SUCCESS", false}, // Not in numeric system
 	}
 
@@ -617,3 +510,247 @@ func TestLogLevelOnly(t *testing.T) {
 	}
 }
 
+// configEnvVars lists every environment variable read by Init() and its helpers.
+var configEnvVars = []string{
+	"SAVE_LOG_FILE", "LOG_FILE_NAME", "LOG_FILE_PATH", "LOG_LEVEL",
+	"NOTIFICATIONS_SLACK_ENABLED",
+	"NOTIFICATION_FATAL_LOG", "NOTIFICATION_ERROR_LOG", "NOTIFICATION_WARNING_LOG",
+	"NOTIFICATION_INFO_LOG", "NOTIFICATION_SUCCESS_LOG",
+	"SLACK_TOKEN", "SLACK_CHANNEL_ID", "SLACK_CHANEL_ID",
+}
+
+// resetConfigForTest leaves the v2 global configuration as if Init() had never
+// run: it unsets every go_logs environment variable (restored by t.Setenv at the
+// end of the test), closes the persistent log file, zeroes the globals and
+// redirects warnOutput to the returned buffer.
+func resetConfigForTest(t *testing.T) *bytes.Buffer {
+	t.Helper()
+	for _, key := range configEnvVars {
+		t.Setenv(key, "")
+		os.Unsetenv(key)
+	}
+
+	closeLogFile(nil)
+	isInit = false
+	saveLogFile = false
+	logFileName = ""
+	logFilePath = ""
+	notificationsEnabled = false
+	notificationLogFatal = false
+	notificationLogError = false
+	notificationLogWarning = false
+	notificationLogInfo = false
+	notificationLogSuccess = false
+	notificationSettingsMutex.Lock()
+	notificationSettings = nil
+	notificationSettingsMutex.Unlock()
+	SetNotifier(nil)
+	logLevel = 0
+	useLegacySystem = false
+
+	warnings := &bytes.Buffer{}
+	prevWarn := warnOutput
+	warnOutput = warnings
+	t.Cleanup(func() {
+		warnOutput = prevWarn
+		closeLogFile(nil)
+		isInit = false
+	})
+	return warnings
+}
+
+func TestEnvBool(t *testing.T) {
+	tests := []struct {
+		name     string
+		set      bool
+		value    string
+		want     bool
+		warnWith []string // empty: no warning expected
+	}{
+		{"absent", false, "", false, nil},
+		{"empty", true, "", false, nil},
+		{"one", true, "1", true, nil},
+		{"true", true, "true", true, nil},
+		{"TRUE", true, "TRUE", true, nil},
+		{"zero", true, "0", false, nil},
+		{"false", true, "false", false, nil},
+		{"invalid", true, "quizas", false, []string{"X", `"quizas"`, "valor por defecto"}},
+		{"spaces", true, " true ", false, []string{"X"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			warnings := resetConfigForTest(t)
+			t.Setenv("X", "")
+			os.Unsetenv("X")
+			if tt.set {
+				os.Setenv("X", tt.value)
+			}
+
+			if got := envBool("X", false); got != tt.want {
+				t.Errorf("envBool(X=%q) = %v, want %v", tt.value, got, tt.want)
+			}
+
+			if len(tt.warnWith) == 0 {
+				if warnings.Len() != 0 {
+					t.Errorf("expected no warning, got %q", warnings.String())
+				}
+				return
+			}
+			for _, s := range tt.warnWith {
+				if !strings.Contains(warnings.String(), s) {
+					t.Errorf("warning %q does not contain %q", warnings.String(), s)
+				}
+			}
+		})
+	}
+}
+
+func TestInit_EmptyEnvironment(t *testing.T) {
+	warnings := resetConfigForTest(t)
+
+	Init()
+
+	if saveLogFile {
+		t.Error("file saving should be disabled with an empty environment")
+	}
+	if notificationsEnabled {
+		t.Error("Slack notifications should be disabled with an empty environment")
+	}
+	if logLevel != LevelInfo {
+		t.Errorf("effective level = %d, want LevelInfo (%d)", logLevel, LevelInfo)
+	}
+	if warnings.Len() != 0 {
+		t.Errorf("expected no warning, got %q", warnings.String())
+	}
+}
+
+func TestInfoLog_QuickstartWithoutConfig(t *testing.T) {
+	resetConfigForTest(t)
+	out := captureStdLog(t)
+
+	InfoLog("hola")
+
+	if !strings.Contains(out.String(), "hola") {
+		t.Errorf("output %q does not contain %q", out.String(), "hola")
+	}
+}
+
+// captureStdLog redirects the standard logger (used by the v2 API to print to
+// the console) to a buffer for the duration of the test.
+func captureStdLog(t *testing.T) *bytes.Buffer {
+	t.Helper()
+	out := &bytes.Buffer{}
+	prev := log.Writer()
+	log.SetOutput(out)
+	t.Cleanup(func() { log.SetOutput(prev) })
+	return out
+}
+
+func TestInit_LogLevelDefaultAndInvalid(t *testing.T) {
+	tests := []struct {
+		name     string
+		set      bool
+		value    string
+		want     int
+		warnWith string // empty: no warning expected
+	}{
+		{"absent", false, "", LevelInfo, ""},
+		{"debug", true, "debug", LevelDebug, ""},
+		{"ERROR", true, "ERROR", LevelError, ""},
+		{"invalid", true, "loud", LevelInfo, "loud"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			warnings := resetConfigForTest(t)
+			if tt.set {
+				os.Setenv("LOG_LEVEL", tt.value)
+			}
+
+			Init()
+
+			if logLevel != tt.want {
+				t.Errorf("effective level = %d, want %d", logLevel, tt.want)
+			}
+			if tt.warnWith == "" {
+				if warnings.Len() != 0 {
+					t.Errorf("expected no warning, got %q", warnings.String())
+				}
+			} else if !strings.Contains(warnings.String(), tt.warnWith) {
+				t.Errorf("warning %q does not contain %q", warnings.String(), tt.warnWith)
+			}
+		})
+	}
+}
+
+// The v2 API calls getNotificationSettings with upper-case level names.
+func TestGetNotificationSettings_DefaultInfoLevel(t *testing.T) {
+	resetConfigForTest(t)
+	Init()
+
+	tests := []struct {
+		level string
+		want  bool
+	}{
+		{"INFO", true},
+		{"WARNING", true},
+		{"ERROR", true},
+		{"FATAL", true},
+		{"SUCCESS", true},
+		{"DEBUG", false},
+		{"TRACE", false},
+	}
+	for _, tt := range tests {
+		if got := getNotificationSettings(tt.level); got != tt.want {
+			t.Errorf("getNotificationSettings(%q) = %v, want %v", tt.level, got, tt.want)
+		}
+	}
+}
+
+func TestInit_ReinitUpdatesLogLevel(t *testing.T) {
+	resetConfigForTest(t)
+	os.Setenv("LOG_LEVEL", "info")
+	Init()
+
+	os.Setenv("LOG_LEVEL", "debug")
+	Init()
+
+	if logLevel != LevelDebug {
+		t.Errorf("effective level = %d, want LevelDebug (%d)", logLevel, LevelDebug)
+	}
+}
+
+func TestInit_LogFileCannotBeOpened(t *testing.T) {
+	warnings := resetConfigForTest(t)
+	out := captureStdLog(t)
+	missingDir := filepath.Join(t.TempDir(), "does-not-exist")
+	os.Setenv("SAVE_LOG_FILE", "1")
+	os.Setenv("LOG_FILE_PATH", missingDir)
+
+	Init()
+	InfoLog("hola")
+
+	if !strings.Contains(warnings.String(), missingDir) || !strings.Contains(warnings.String(), "desactivado") {
+		t.Errorf("warning %q should contain %q and %q", warnings.String(), missingDir, "desactivado")
+	}
+	if saveLogFile {
+		t.Error("file saving should be disabled after the open failure")
+	}
+	if logWriter != nil {
+		t.Error("logWriter should be nil after the open failure")
+	}
+	if !strings.Contains(out.String(), "hola") {
+		t.Errorf("output %q does not contain %q", out.String(), "hola")
+	}
+}
+
+func TestConfigHasNoProcessTermination(t *testing.T) {
+	src, err := os.ReadFile("config.go")
+	if err != nil {
+		t.Fatalf("reading config.go: %v", err)
+	}
+	if strings.Contains(string(src), "log.Fatal") {
+		t.Error("config.go must not call log.Fatal*")
+	}
+}

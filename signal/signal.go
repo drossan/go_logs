@@ -29,7 +29,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	go_logs "github.com/drossan/go_logs"
+	go_logs "github.com/drossan/go_logs/v3"
 )
 
 // Rotator is an interface for types that can rotate their output.
@@ -39,11 +39,11 @@ type Rotator interface {
 
 // SIGHUPHandler handles SIGHUP signals to trigger log rotation.
 type SIGHUPHandler struct {
-	rotator   Rotator
-	signals   []os.Signal
-	sigChan   chan os.Signal
-	done      chan struct{}
-	logger    go_logs.Logger
+	rotator Rotator
+	signals []os.Signal
+	sigChan chan os.Signal
+	done    chan struct{}
+	logger  go_logs.Logger
 }
 
 // SIGHUPHandlerOption is a functional option for configuring the handler.

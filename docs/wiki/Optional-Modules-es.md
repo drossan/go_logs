@@ -23,11 +23,12 @@ go_logs/
 
 ## Metrics (Core - Siempre Habilitado)
 
-Estadísticas de logging con zero overhead disponibles en cada logger:
+Estadísticas de logging con zero overhead disponibles en cada logger. `GetMetrics()` no está en la interfaz `Logger` (no todas las implementaciones acumulan métricas); se accede con type assertion sobre `*go_logs.LoggerImpl`:
 
 ```go
 logger, _ := go_logs.New()
-metrics := logger.GetMetrics()
+impl := logger.(*go_logs.LoggerImpl)
+metrics := impl.GetMetrics()
 
 // Métricas disponibles
 fmt.Printf("Total logs: %d\n", metrics.Total())
@@ -53,7 +54,7 @@ Todas las operaciones de métricas usan operaciones atómicas, haciéndolas segu
 ```go
 // Exponer métricas a Prometheus
 http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
-    metrics := logger.GetMetrics()
+    metrics := impl.GetMetrics()
     snapshot := metrics.Snapshot()
 
     fmt.Fprintf(w, "# HELP go_logs_total Total de entradas de log\n")
@@ -73,14 +74,14 @@ http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
 Logging non-blocking para aplicaciones de alto throughput:
 
 ```go
-import "github.com/drossan/go_logs/async"
+import "github.com/drossan/go_logs/v3/async"
 
 // Crear logger síncrono base
 syncLogger, _ := go_logs.New(go_logs.WithLevel(go_logs.InfoLevel))
 
 // Envolver con async (tamaño buffer 1000)
 asyncLogger := async.Wrap(syncLogger, 1000)
-defer asyncLogger.Sync()
+defer asyncLogger.Close() // drena los logs pendientes y detiene la goroutine worker
 
 // Logging non-blocking
 asyncLogger.Info("Servidor iniciado", go_logs.Int("puerto", 8080))
@@ -91,7 +92,7 @@ asyncLogger.Info("Servidor iniciado", go_logs.Int("puerto", 8080))
 ```go
 asyncLogger := async.WrapWithConfig(syncLogger, async.Config{
     BufferSize:      10000,              // Capacidad del buffer
-    ShutdownTimeout: 10 * time.Second,   // Max espera en Sync()
+    ShutdownTimeout: 10 * time.Second,   // Max espera en Sync()/Close()
 })
 ```
 
@@ -99,7 +100,9 @@ asyncLogger := async.WrapWithConfig(syncLogger, async.Config{
 
 - **Non-blocking**: Las llamadas de log retornan inmediatamente
 - **Drop-on-overflow**: Si el buffer está lleno, se dropean logs (contados en métricas)
-- **Graceful shutdown**: `Sync()` espera todos los logs pendientes
+- **Graceful shutdown**: `Sync()` espera todos los logs pendientes; `Close()` además detiene la goroutine worker. `Sync()` por sí solo nunca la detiene
+- **Loggers hijos**: los creados con `With()` comparten el buffer, el worker y el contador de pendientes de la raíz, así que `hijo.Sync()` espera a las entradas del hijo
+- **`Close()`**: solo afecta al logger raíz devuelto por `Wrap`/`WrapWithConfig`; es idempotente, en un hijo es no-op y lo que se registre después se descarta
 - **Métricas compartidas**: Los logs dropeados incrementan el contador compartido
 
 ### Cuándo Usar
@@ -119,7 +122,7 @@ asyncLogger := async.WrapWithConfig(syncLogger, async.Config{
 Cambiar nivel de log en runtime via endpoints HTTP:
 
 ```go
-import httplogs "github.com/drossan/go_logs/http"
+import httplogs "github.com/drossan/go_logs/v3/http"
 
 logger, _ := go_logs.New(go_logs.WithLevel(go_logs.InfoLevel))
 
@@ -177,7 +180,7 @@ curl -H "Authorization: Bearer token-secreto" http://localhost:8080/debug/level/
 Rotar logs al recibir señales del sistema:
 
 ```go
-import "github.com/drossan/go_logs/signal"
+import "github.com/drossan/go_logs/v3/signal"
 
 writer, _ := go_logs.NewRotatingFileWriter("/var/log/app.log", 100, 5)
 logger, _ := go_logs.New(go_logs.WithOutput(writer))

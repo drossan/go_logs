@@ -38,3 +38,8 @@ Thumbs.db
 # Wiki clone directory (used by sync-wiki workflow locally)
 # Only ignore root wiki/ directory, not docs/wiki/
 /wiki/
+
+# Documentation site (VitePress, website/)
+website/node_modules/
+website/.vitepress/dist/
+website/.vitepress/cache/

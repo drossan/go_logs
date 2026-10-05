@@ -41,6 +41,6 @@ func registerMessage(message string) {
 	}
 
 	if notificationsEnabled {
-		_ = notifier.SendNotification(message)
+		sendNotification(message)
 	}
 }

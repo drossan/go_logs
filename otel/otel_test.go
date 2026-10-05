@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drossan/go_logs"
+	"github.com/drossan/go_logs/v3"
 )
 
 // TestOTLPExporter_New tests exporter creation

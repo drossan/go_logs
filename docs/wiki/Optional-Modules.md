@@ -25,9 +25,12 @@ go_logs/
 
 Zero-overhead logging statistics available on every logger:
 
+`GetMetrics()` is not part of the `Logger` interface (not every implementation accumulates metrics); access it with a type assertion on `*go_logs.LoggerImpl`:
+
 ```go
 logger, _ := go_logs.New()
-metrics := logger.GetMetrics()
+impl := logger.(*go_logs.LoggerImpl)
+metrics := impl.GetMetrics()
 
 // Available metrics
 fmt.Printf("Total logs: %d\n", metrics.Total())
@@ -53,7 +56,7 @@ All metrics operations use atomic operations, making them safe for concurrent us
 ```go
 // Expose metrics to Prometheus
 http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
-    metrics := logger.GetMetrics()
+    metrics := impl.GetMetrics()
     snapshot := metrics.Snapshot()
 
     fmt.Fprintf(w, "# HELP go_logs_total Total log entries\n")
@@ -73,14 +76,14 @@ http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
 Non-blocking logging for high-throughput applications:
 
 ```go
-import "github.com/drossan/go_logs/async"
+import "github.com/drossan/go_logs/v3/async"
 
 // Create base sync logger
 syncLogger, _ := go_logs.New(go_logs.WithLevel(go_logs.InfoLevel))
 
 // Wrap with async (buffer size 1000)
 asyncLogger := async.Wrap(syncLogger, 1000)
-defer asyncLogger.Sync()
+defer asyncLogger.Close() // drains pending logs and stops the worker goroutine
 
 // Non-blocking logging
 asyncLogger.Info("Server started", go_logs.Int("port", 8080))
@@ -91,7 +94,7 @@ asyncLogger.Info("Server started", go_logs.Int("port", 8080))
 ```go
 asyncLogger := async.WrapWithConfig(syncLogger, async.Config{
     BufferSize:      10000,              // Buffer capacity
-    ShutdownTimeout: 10 * time.Second,   // Max wait on Sync()
+    ShutdownTimeout: 10 * time.Second,   // Max wait on Sync()/Close()
 })
 ```
 
@@ -99,7 +102,9 @@ asyncLogger := async.WrapWithConfig(syncLogger, async.Config{
 
 - **Non-blocking**: Log calls return immediately
 - **Drop-on-overflow**: If buffer is full, logs are dropped (counted in metrics)
-- **Graceful shutdown**: `Sync()` waits for all pending logs
+- **Graceful shutdown**: `Sync()` waits for all pending logs; `Close()` also stops the worker goroutine. `Sync()` alone never stops it
+- **Child loggers**: loggers created with `With()` share the root's buffer, worker and pending counter, so `child.Sync()` waits for the child's entries
+- **`Close()`**: only affects the root logger returned by `Wrap`/`WrapWithConfig`; it is idempotent, is a no-op on children, and logs sent after it are discarded
 - **Shared metrics**: Dropped logs increment the shared metrics counter
 
 ### When to Use
@@ -119,7 +124,7 @@ asyncLogger := async.WrapWithConfig(syncLogger, async.Config{
 Change log levels at runtime via HTTP endpoints:
 
 ```go
-import httplogs "github.com/drossan/go_logs/http"
+import httplogs "github.com/drossan/go_logs/v3/http"
 
 logger, _ := go_logs.New(go_logs.WithLevel(go_logs.InfoLevel))
 
@@ -177,7 +182,7 @@ curl -H "Authorization: Bearer secret-token" http://localhost:8080/debug/level/m
 Rotate logs when receiving system signals:
 
 ```go
-import "github.com/drossan/go_logs/signal"
+import "github.com/drossan/go_logs/v3/signal"
 
 writer, _ := go_logs.NewRotatingFileWriter("/var/log/app.log", 100, 5)
 logger, _ := go_logs.New(go_logs.WithOutput(writer))

@@ -10,6 +10,7 @@ This guide helps you migrate from `go_logs` v2 to v3. The v3 release introduces 
 - [Step-by-Step Migration](#step-by-step-migration)
 - [API Reference](#api-reference)
 - [Configuration Changes](#configuration-changes)
+- [Slack en v3.1](#slack-en-v31)
 - [Examples](#examples)
 
 ---
@@ -75,7 +76,7 @@ Use v3 API from the start:
 package main
 
 import (
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func main() {
@@ -115,7 +116,7 @@ go_logs.Errorf("Error: %v", err)
 
 ```bash
 # Update to v3
-go get -u github.com/drossan/go_logs@v3
+go get -u github.com/drossan/go_logs/v3@latest
 go mod tidy
 ```
 
@@ -387,7 +388,8 @@ SAVE_LOG_FILE=1
 LOG_FILE_NAME=app.log
 LOG_FILE_PATH=/var/log
 
-# Slack notifications (legacy)
+# Slack notifications (legacy) — since v3.1 they also need go_logs.SetNotifier,
+# see "Slack en v3.1"
 NOTIFICATIONS_SLACK_ENABLED=1
 NOTIFICATION_FATAL_LOG=1
 NOTIFICATION_ERROR_LOG=1
@@ -395,7 +397,7 @@ NOTIFICATION_WARNING_LOG=1
 NOTIFICATION_INFO_LOG=1
 NOTIFICATION_SUCCESS_LOG=1
 
-# Slack credentials
+# Slack credentials (read by slack.NewNotifierFromEnv in go_logs/slack/v3)
 SLACK_TOKEN=xoxb-...
 SLACK_CHANNEL_ID=C1234567890
 ```
@@ -436,6 +438,53 @@ export LOG_LEVEL=error
 
 ---
 
+## Slack en v3.1
+
+El cliente de Slack sale del core a su propio módulo, `github.com/drossan/go_logs/slack/v3`. El core ya no depende de `slack-go/slack` ni de `gorilla/websocket`, y el paquete `adapters` desaparece.
+
+**Antes** (v2 / v3.0.x): bastaba con el entorno; `Init()` construía el notificador de Slack solo.
+
+```bash
+NOTIFICATIONS_SLACK_ENABLED=1
+NOTIFICATION_ERROR_LOG=1
+SLACK_TOKEN=xoxb-...
+SLACK_CHANNEL_ID=C1234567890
+```
+
+```go
+go_logs.ErrorLog("fallo") // se enviaba a Slack
+```
+
+**Después** (v3.1): las mismas variables, más registrar el notificador una vez al arrancar.
+
+```bash
+go get github.com/drossan/go_logs/slack/v3
+```
+
+```go
+import (
+    "github.com/drossan/go_logs/v3"
+    "github.com/drossan/go_logs/slack/v3"
+)
+
+func main() {
+    n, _ := slack.NewNotifierFromEnv() // lee SLACK_TOKEN y SLACK_CHANNEL_ID (o el legado SLACK_CHANEL_ID)
+    go_logs.SetNotifier(n)
+
+    go_logs.ErrorLog("fallo") // se envía a Slack
+}
+```
+
+- Si `NewNotifierFromEnv` falla (falta una variable), devuelve un notificador deshabilitado que no envía nada y un error que nombra la variable. Por eso `n, _ :=` es seguro; comprueba el error si quieres saber por qué no llega nada.
+- `slack.NewNotifier(token, channelID)` construye el notificador sin leer el entorno.
+- Si `NOTIFICATIONS_SLACK_ENABLED=1` y no registras ningún notificador, no se envía nada y se escribe **una sola vez** por stderr: `go_logs: NOTIFICATIONS_SLACK_ENABLED activo pero no hay notificador; llama a go_logs.SetNotifier (ver go_logs/slack/v3)`. El proceso sigue.
+- `go_logs.SetNotifier(nil)` desactiva las notificaciones. Acepta cualquier `domain.Notifier`, así que puedes registrar tu propio notificador.
+- `go_logs.IsNotifierEnabled()` devuelve `true` solo si hay notificador registrado y `NOTIFICATIONS_SLACK_ENABLED` estaba activo al llamar a `Init()`.
+- Cambios de nombre: `adapters.NewSlackNotifier()` → `slack.NewNotifierFromEnv()`, `*adapters.SlackNotifier` → `*slack.Notifier`, `adapters.ErrSlackTokenMissing`/`ErrSlackChannelMissing` → `slack.ErrTokenMissing`/`ErrChannelMissing` (compáralos con `errors.Is`).
+- API v3: `*slack.Notifier` satisface `hooks.SlackNotifier`, así que sirve tal cual para `hooks.NewSlackHook(n, go_logs.ErrorLevel)`.
+
+---
+
 ## Examples
 
 ### Example 1: Web Server with Structured Logging
@@ -448,7 +497,7 @@ import (
     "net/http"
     "os"
 
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func main() {
@@ -497,7 +546,7 @@ package main
 import (
     "os"
 
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func main() {
@@ -534,7 +583,7 @@ func main() {
 ```go
 package main
 
-import "github.com/drossan/go_logs"
+import "github.com/drossan/go_logs/v3"
 
 func handleRequest(userID int, username string) {
     go_logs.Infof("User %s (ID: %d) logged in", username, userID)
@@ -552,7 +601,7 @@ func handleRequest(userID int, username string) {
 ```go
 package main
 
-import "github.com/drossan/go_logs"
+import "github.com/drossan/go_logs/v3"
 
 func handleRequest(userID int, username string) {
     // No code changes - works as-is
@@ -571,7 +620,7 @@ func handleRequest(userID int, username string) {
 ```go
 package main
 
-import "github.com/drossan/go_logs"
+import "github.com/drossan/go_logs/v3"
 
 var logger, _ = go_logs.New(
     go_logs.WithLevel(go_logs.InfoLevel),
@@ -601,7 +650,7 @@ func handleRequest(userID int, username string) {
 ```go
 package main
 
-import "github.com/drossan/go_logs"
+import "github.com/drossan/go_logs/v3"
 
 var logger, _ = go_logs.New(
     go_logs.WithLevel(go_logs.InfoLevel),
@@ -841,7 +890,7 @@ Rotation happens automatically when file size exceeds LOG_MAX_SIZE.
 
 For issues, questions, or contributions:
 - GitHub Issues: https://github.com/drossan/go_logs/issues
-- Documentation: https://pkg.go.dev/github.com/drossan/go_logs
+- Documentation: https://pkg.go.dev/github.com/drossan/go_logs/v3
 - Migration examples: See `example_v3_test.go`
 
 ---
