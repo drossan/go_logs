@@ -237,6 +237,46 @@ func TestLogger_LogCtx(t *testing.T) {
 	}
 }
 
+// TestLogger_LogCtx_NilContext verifies LogCtx() does not panic when passed a nil context.
+func TestLogger_LogCtx_NilContext(t *testing.T) {
+	buf := &bytes.Buffer{}
+	logger, _ := New(
+		WithOutput(buf),
+		WithLevel(InfoLevel),
+	)
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("LogCtx(nil, ...) panicked: %v", r)
+		}
+	}()
+
+	logger.LogCtx(nil, InfoLevel, "nil context message")
+
+	output := buf.String()
+	if !strings.Contains(output, "nil context message") {
+		t.Error("LogCtx(nil, ...) should still log the message")
+	}
+}
+
+// TestLogger_SuccessLevel_VisibleAtDefaultLevel verifies SuccessLevel messages are
+// not filtered out when the logger uses the default level (InfoLevel).
+func TestLogger_SuccessLevel_VisibleAtDefaultLevel(t *testing.T) {
+	buf := &bytes.Buffer{}
+	logger, _ := New(WithOutput(buf))
+
+	if logger.GetLevel() != InfoLevel {
+		t.Fatalf("expected default level to be InfoLevel, got %v", logger.GetLevel())
+	}
+
+	logger.Log(SuccessLevel, "success message")
+
+	output := buf.String()
+	if !strings.Contains(output, "success message") {
+		t.Error("SuccessLevel message should be visible at the default log level")
+	}
+}
+
 // TestLogger_StructuredFields verifies all field types work
 func TestLogger_StructuredFields(t *testing.T) {
 	buf := &bytes.Buffer{}

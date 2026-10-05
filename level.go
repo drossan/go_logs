@@ -25,9 +25,10 @@ const (
 	// FatalLevel represents critical errors that will terminate the application (Level 60)
 	FatalLevel Level = 60
 
-	// SuccessLevel represents successful operations (between Debug and Info, Level 25)
-	// This level is maintained for v2 backward compatibility
-	SuccessLevel Level = 25
+	// SuccessLevel represents successful operations (between Info and Warn, Level 35)
+	// This level is maintained for v2 backward compatibility. It is placed above
+	// InfoLevel so success messages remain visible at the default log level.
+	SuccessLevel Level = 35
 
 	// SilentLevel disables all logging (Level 0)
 	SilentLevel Level = 0

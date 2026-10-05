@@ -206,6 +206,12 @@ func (l *LoggerImpl) LogCtx(ctx context.Context, level Level, msg string, fields
 		return
 	}
 
+	// A nil context is not a valid context.Context, but callers may still pass it.
+	// Fall back to context.Background() to avoid panicking on ctx.Value(...).
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	// Extract fields from context (Phase 3: Real Context)
 	// For now, this is a no-op. In Phase 3, we'll extract trace_id, span_id, etc.
 	contextFields := l.extractContextFields(ctx)

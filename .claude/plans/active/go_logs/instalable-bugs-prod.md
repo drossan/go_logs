@@ -114,7 +114,7 @@ El análisis de `.claude/reports/analisis-completo-20260926.md` (2026-09-26) rep
 - [x] `go_logs-instalable-bugs-prod-08` (P2) — Sitio VitePress en `website/` con i18n y contenido migrado del wiki con snippets corregidos  · depends_on: 06
 - [x] `go_logs-instalable-bugs-prod-09` (P2) — Workflow de despliegue a GitHub Pages  · depends_on: 08
 - [x] `go_logs-instalable-bugs-prod-10` (P2) — README y wiki con snippets corregidos, `CLAUDE.md` veraz, changelog `v3.1.0` consolidado, GoReleaser v2, verificación e2e  · depends_on: 07, 09
-- [ ] `go_logs-instalable-bugs-prod-11` (P2) — `LogCtx(nil, ...)` sin pánico; `SuccessLevel` visible con el nivel por defecto  · depends_on: 01
+- [x] `go_logs-instalable-bugs-prod-11` (P2) — `LogCtx(nil, ...)` sin pánico; `SuccessLevel` visible con el nivel por defecto  · depends_on: 01
 
 ## Registro de cambios del plan
 
