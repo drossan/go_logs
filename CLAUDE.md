@@ -12,49 +12,7 @@ Esta es una biblioteca de registro moderna para Go (`go_logs` v3) que proporcion
 
 ## Arquitectura v3
 
-### Arquitectura Híbrida
-
-El proyecto sigue una **arquitectura híbrida** con el core en el paquete principal y features opcionales como submódulos:
-
-```
-go_logs/
-├── Core (paquete principal - siempre incluido)
-│   ├── logger.go              # Interfaz Logger principal
-│   ├── logger_impl.go         # Implementación thread-safe de Logger
-│   ├── level.go               # Syslog-style Level
-│   ├── field.go               # Structured Fields
-│   ├── entry.go               # Log entry
-│   ├── formatter.go           # Interfaz Formatter
-│   ├── text_formatter.go      # TextFormatter (desarrollo)
-│   ├── json_formatter.go      # JSONFormatter (producción)
-│   ├── context.go             # Context propagation
-│   ├── hook.go                # Hook interface
-│   ├── rotating_writer.go     # RotatingFileWriter
-│   ├── options.go             # Option pattern
-│   ├── config.go              # Configuración
-│   ├── metrics.go             # Metrics/Stats (zero overhead)
-│   └── api.go                 # API v2 (backward compatible)
-│
-├── async/                 # Submódulo: Async logging (opt-in)
-│   └── async.go           # Non-blocking logging con goroutine
-│
-├── http/                  # Submódulo: HTTP endpoints (opt-in)
-│   └── dynamic_level.go   # Log level dinámico via HTTP
-│
-├── signal/                # Submódulo: Signal handlers (opt-in)
-│   └── signal.go          # SIGHUP handler para rotación
-│
-├── domain/                # Interfaces del dominio (v2 legacy)
-│   └── notification.go    # Interfaz Notifier
-│
-├── hooks/                 # Hooks v3
-│   └── slack_hook.go      # SlackHook (v3 moderno)
-│
-├── slack/                 # ÚNICO submódulo: github.com/drossan/go_logs/slack/v3 (go.mod propio)
-│   └── notifier.go        # slack.Notifier (NewNotifier, NewNotifierFromEnv)
-│
-└── website/               # Sitio de documentación VitePress (pnpm), no es código Go. Ver website/README.md
-```
+El proyecto es un **único módulo Go** (`github.com/drossan/go_logs/v3`): el core y los paquetes `async/`, `http/`, `signal/`, `domain/` y `hooks/` viven bajo el mismo `go.mod` raíz, sin `require`/`replace` entre ellos. El único submódulo real, con su propio `go.mod` y ciclo de versión independiente, es `slack/` (`github.com/drossan/go_logs/slack/v3`), aislado para que el core no arrastre `slack-go/slack`.
 
 ### Capas Principales
 
@@ -103,7 +61,7 @@ VitePress 1.x con pnpm, `base: '/go_logs/'` (GitHub Pages). `pnpm --dir website 
 import "github.com/drossan/go_logs/v3"
 
 // Crear logger con configuración
-logger := go_logs.New(
+logger, _ := go_logs.New(
     go_logs.WithLevel(go_logs.InfoLevel),
     go_logs.WithFormatter(go_logs.NewJSONFormatter()),
     go_logs.WithOutput(os.Stdout),
@@ -173,11 +131,11 @@ Todas son opcionales. `Init()` (y la auto-inicialización de la API v2) **nunca 
 ### Configuración Programática (v3)
 
 ```go
-logger := go_logs.New(
+logger, _ := go_logs.New(
     go_logs.WithLevel(go_logs.DebugLevel),
     go_logs.WithFormatter(go_logs.NewJSONFormatter()),
     go_logs.WithRotatingFile("/var/log/app.log", 100, 5),
-    go_logs.WithHook(go_logs.NewFuncHook(func(e *go_logs.Entry) error {
+    go_logs.WithHooks(go_logs.NewFuncHook(func(e *go_logs.Entry) error {
         // Custom hook logic
         return nil
     })),
@@ -282,8 +240,8 @@ type Hook interface {
 }
 
 // Usar hook
-logger := go_logs.New(
-    go_logs.WithHook(myCustomHook),
+logger, _ := go_logs.New(
+    go_logs.WithHooks(myCustomHook),
 )
 ```
 
@@ -305,7 +263,7 @@ Enmascara automáticamente campos sensibles:
 - authorization, auth
 
 ```go
-logger := go_logs.New(
+logger, _ := go_logs.New(
     go_logs.WithCommonRedaction(),
 )
 // password=***, token=*** en todos los logs
@@ -313,13 +271,20 @@ logger := go_logs.New(
 
 ## Performance
 
+Números medidos en Apple M1 (`go test -bench=. -benchmem`, tarea 04), no estimados; reproducibles con los comandos de la sección anterior:
+
 | Métrica | Resultado | Target |
 |---------|-----------|--------|
-| Fast-path filtering | 0.32 ns/op | < 5 ns |
-| Field creation | 0.34 ns/op, 0 allocs | < 10 ns |
-| TextFormatter | 220.6 ns/op | < 500 ns |
-| JSONFormatter | 249.3 ns/op | < 1 µs |
-| RotatingFileWriter | 16M msg/sec | - |
+| Fast-path filtering (nivel filtrado) | ~8 ns/op, 0 allocs | < 50 ns |
+| Field creation (`Multiple`) | ~1.8 ns/op, 0 allocs | < 10 ns |
+| TextFormatter (entrada simple) | ~397 ns/op, 4 allocs | < 1 µs |
+| JSONFormatter (entrada simple) | ~1.4 µs/op, 4 allocs | < 2 µs |
+| `With()` child logger | ~630 ns/op, 14 allocs | - |
+| `RotatingFileWriter.Write` (flush sin fsync) | ~3.9 µs/op, 15 allocs | - |
+| Logger → JSON → `RotatingFileWriter` end-to-end | ~3.4 µs/op, 16 allocs | < 10 µs/op |
+| Logging concurrente (`-race`, varias goroutines) | ~1.9 µs/op, 15 allocs | - |
+
+Antes del fix de la tarea 04 (fsync por entrada vía `Sync()` en cada `writeEntry`), el end-to-end a fichero medía ~260 msg/s (~3,9 ms/op); con `Flush()` sin fsync baja a los ~3.4 µs/op de la tabla, muy por debajo del umbral informativo de 10 µs/op del plan.
 
 ## Migración v2 → v3
 
@@ -378,13 +343,16 @@ Opciones:
 - Race detector clean
 - ~90% coverage en código crítico
 
-## Features Opcionales (Submódulos)
+## Paquetes Opcionales
 
 ### Metrics (Core - Siempre habilitado)
 
+`GetMetrics()` no está en la interfaz `Logger` (no todas las implementaciones acumulan métricas); se accede con type assertion sobre `*LoggerImpl`:
+
 ```go
 logger, _ := go_logs.New()
-metrics := logger.GetMetrics()
+impl := logger.(*go_logs.LoggerImpl)
+metrics := impl.GetMetrics()
 
 // Métricas disponibles
 fmt.Printf("Total logs: %d\n", metrics.Total())

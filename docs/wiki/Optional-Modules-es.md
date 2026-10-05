@@ -23,11 +23,12 @@ go_logs/
 
 ## Metrics (Core - Siempre Habilitado)
 
-Estadísticas de logging con zero overhead disponibles en cada logger:
+Estadísticas de logging con zero overhead disponibles en cada logger. `GetMetrics()` no está en la interfaz `Logger` (no todas las implementaciones acumulan métricas); se accede con type assertion sobre `*go_logs.LoggerImpl`:
 
 ```go
 logger, _ := go_logs.New()
-metrics := logger.GetMetrics()
+impl := logger.(*go_logs.LoggerImpl)
+metrics := impl.GetMetrics()
 
 // Métricas disponibles
 fmt.Printf("Total logs: %d\n", metrics.Total())
@@ -53,7 +54,7 @@ Todas las operaciones de métricas usan operaciones atómicas, haciéndolas segu
 ```go
 // Exponer métricas a Prometheus
 http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
-    metrics := logger.GetMetrics()
+    metrics := impl.GetMetrics()
     snapshot := metrics.Snapshot()
 
     fmt.Fprintf(w, "# HELP go_logs_total Total de entradas de log\n")
