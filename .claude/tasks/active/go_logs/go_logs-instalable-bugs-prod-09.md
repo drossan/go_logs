@@ -2,13 +2,13 @@
 id: go_logs-instalable-bugs-prod-09
 package: go_logs
 plan: instalable-bugs-prod
-status: pending
+status: active
 priority: 2
 depends_on: [go_logs-instalable-bugs-prod-08]
 estimate: 1h
 actual:
 created: 2026-09-26
-updated: 2026-09-26
+updated: 2026-09-27
 ---
 
 # Workflow de despliegue del sitio a GitHub Pages

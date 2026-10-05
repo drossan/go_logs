@@ -5,7 +5,7 @@ status: active           # pending | active | completed | cancelled
 branch: plan/go_logs/instalable-bugs-prod
 issue:
 created: 2026-09-26
-updated: 2026-09-27
+updated: 2026-10-05
 ---
 
 # go_logs instalable como v3, sin los bugs de producción y con sitio de documentación
@@ -112,7 +112,7 @@ El análisis de `.claude/reports/analisis-completo-20260926.md` (2026-09-26) rep
 - [x] `go_logs-instalable-bugs-prod-06` (P1) — Slack fuera del core: submódulo `slack/`, `SetNotifier`, `config.go` sin `adapters`  · depends_on: 01, 02
 - [x] `go_logs-instalable-bugs-prod-07` (P1) — `ci.yml` mínimo: gofmt, vet, test -race en raíz y `slack/`  · depends_on: 03, 04, 05, 06
 - [x] `go_logs-instalable-bugs-prod-08` (P2) — Sitio VitePress en `website/` con i18n y contenido migrado del wiki con snippets corregidos  · depends_on: 06
-- [ ] `go_logs-instalable-bugs-prod-09` (P2) — Workflow de despliegue a GitHub Pages  · depends_on: 08
+- [x] `go_logs-instalable-bugs-prod-09` (P2) — Workflow de despliegue a GitHub Pages  · depends_on: 08
 - [ ] `go_logs-instalable-bugs-prod-10` (P2) — README y wiki con snippets corregidos, `CLAUDE.md` veraz, changelog `v3.1.0` consolidado, GoReleaser v2, verificación e2e  · depends_on: 07, 09
 - [ ] `go_logs-instalable-bugs-prod-11` (P2) — `LogCtx(nil, ...)` sin pánico; `SuccessLevel` visible con el nivel por defecto  · depends_on: 01
 
@@ -125,3 +125,4 @@ El análisis de `.claude/reports/analisis-completo-20260926.md` (2026-09-26) rep
 - 2026-09-26: durante la tarea 01, decisión del owner: la directiva `go` del `go.mod` sube de `1.21` a `1.27.0` ("el principal consumidor soy yo; quien quiera seguir en 1.21 que use el paquete actual"). Se avisó de que la directiva es un mínimo impuesto a todo consumidor y el owner lo aceptó. Afecta a los requisitos documentados (wiki `Getting-Started*`, `Installation*`, HOW-TO); la tarea 07 (CI con Go stable) no cambia.
 - 2026-09-26: durante la tarea 06, decisión del owner: el submódulo Slack pasa de `github.com/drossan/go_logs/v3/slack` a **`github.com/drossan/go_logs/slack/v3`** (directorio `slack/`, tag `slack/v3.1.0`, patrón go-redis `extra/*/v9`). Motivo reproducido: un consumidor con `require github.com/drossan/go_logs/v3/slack v3.1.0` falla en `go mod tidy` con `version "v3.1.0" invalid: should be v0 or v1, not v3` (el sufijo de versión mayor solo cuenta al final de la ruta; además esa ruta mapearía al directorio `v3/slack/`). Rutas del plan y de la tarea 10 actualizadas. La directiva `go` de `slack/go.mod` queda en `1.27.0` (no `1.21`): `go mod tidy` la sube porque el `replace ../` apunta a un módulo que exige 1.27.0.
 - 2026-09-27: durante la tarea 08, petición del owner: el sitio sigue el estilo de `sdk.griddo.io` (tema por defecto de VitePress, nav con `Changelog` y desplegable de versión, portada con tarjetas por sección) **e incluye el changelog** (`website/changelog.md` y `website/es/changelog.md`). El recuento del Objetivo 8 pasa de 14+14 a 15+15 páginas (las 14 del wiki + changelog por idioma). El changelog del sitio ya cuenta la historia real (`v3.0.0`-`v3.0.4` consolidados, `v3.1.0` sin publicar); la tarea 10 alinea con él el changelog del README. En la copia también se retiran `TraceLog`/`DebugLog`/`Tracef`/`Debugf`, citados como API v2 sin existir (el wiki lo corrige la tarea 10).
+- 2026-10-05: tarea 09 completada. Añadido `.github/workflows/deploy-pages.yml`: job `build` (checkout, `pnpm/action-setup@v4` v11, `actions/setup-node@v4` Node 22 con cache pnpm, `pnpm install --frozen-lockfile`, `pnpm build` en `website/`, `actions/configure-pages@v5`, `actions/upload-pages-artifact@v3` con `website/.vitepress/dist`) y job `deploy` (`actions/deploy-pages@v4`, environment `github-pages`); trigger en push a `main` con `paths: website/**` más el propio workflow, y `workflow_dispatch`; `permissions: pages: write, id-token: write`; `concurrency` por `pages` sin cancelar despliegues en curso. Verificado con `actionlint` (limpio) y `pnpm build` local (sin errores). Activar Pages con source "GitHub Actions" sigue siendo acción del owner (ya recogida en el checklist de release de la tarea 10).
