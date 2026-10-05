@@ -70,5 +70,5 @@
 ### Links
 
 - [GitHub](https://github.com/drossan/go_logs)
-- [Go Reference](https://pkg.go.dev/github.com/drossan/go_logs)
+- [Go Reference](https://pkg.go.dev/github.com/drossan/go_logs/v3)
 - [Report Issue](https://github.com/drossan/go_logs/issues)

@@ -12,47 +12,7 @@ Esta es una biblioteca de registro moderna para Go (`go_logs` v3) que proporcion
 
 ## Arquitectura v3
 
-### Arquitectura Híbrida
-
-El proyecto sigue una **arquitectura híbrida** con el core en el paquete principal y features opcionales como submódulos:
-
-```
-go_logs/
-├── Core (paquete principal - siempre incluido)
-│   ├── logger.go              # Interfaz Logger principal
-│   ├── logger_impl.go         # Implementación thread-safe de Logger
-│   ├── level.go               # Syslog-style Level
-│   ├── field.go               # Structured Fields
-│   ├── entry.go               # Log entry
-│   ├── formatter.go           # Interfaz Formatter
-│   ├── text_formatter.go      # TextFormatter (desarrollo)
-│   ├── json_formatter.go      # JSONFormatter (producción)
-│   ├── context.go             # Context propagation
-│   ├── hook.go                # Hook interface
-│   ├── rotating_writer.go     # RotatingFileWriter
-│   ├── options.go             # Option pattern
-│   ├── config.go              # Configuración
-│   ├── metrics.go             # Metrics/Stats (zero overhead)
-│   └── api.go                 # API v2 (backward compatible)
-│
-├── async/                 # Submódulo: Async logging (opt-in)
-│   └── async.go           # Non-blocking logging con goroutine
-│
-├── http/                  # Submódulo: HTTP endpoints (opt-in)
-│   └── dynamic_level.go   # Log level dinámico via HTTP
-│
-├── signal/                # Submódulo: Signal handlers (opt-in)
-│   └── signal.go          # SIGHUP handler para rotación
-│
-├── domain/                # Interfaces del dominio (v2 legacy)
-│   └── notification.go    # Interfaz Notifier
-│
-├── adapters/              # Adaptadores externos (v2 legacy)
-│   └── slack_notifier.go  # SlackNotifier
-│
-└── hooks/                 # Hooks v3
-    └── slack_hook.go      # SlackHook (v3 moderno)
-```
+El proyecto es un **único módulo Go** (`github.com/drossan/go_logs/v3`): el core y los paquetes `async/`, `http/`, `signal/`, `domain/` y `hooks/` viven bajo el mismo `go.mod` raíz, sin `require`/`replace` entre ellos. El único submódulo real, con su propio `go.mod` y ciclo de versión independiente, es `slack/` (`github.com/drossan/go_logs/slack/v3`), aislado para que el core no arrastre `slack-go/slack`.
 
 ### Capas Principales
 
@@ -75,28 +35,33 @@ go_logs/
 ├── api.go                 # API v2 (backward compatible)
 ├── domain/                # Interfaces del dominio
 │   └── notification.go    # Interfaz Notifier (v2 legacy)
-├── adapters/              # Adaptadores externos
-│   └── slack_notifier.go  # SlackNotifier (v2 legacy)
-└── hooks/                 # Hooks v3
-    └── slack_hook.go      # SlackHook (v3 moderno)
+├── hooks/                 # Hooks v3
+│   └── slack_hook.go      # SlackHook (v3 moderno)
+├── slack/                 # Submódulo github.com/drossan/go_logs/slack/v3
+│   └── notifier.go        # slack.Notifier
+└── website/               # Sitio VitePress (EN en /, ES en /es/, changelog), fuente canónica de la doc de usuario
 ```
+
+### Sitio de documentación (`website/`)
+
+VitePress 1.x con pnpm, `base: '/go_logs/'` (GitHub Pages). `pnpm --dir website install && pnpm --dir website build` genera `website/.vitepress/dist`; un enlace interno roto hace fallar el build (no se usa `ignoreDeadLinks`). Contenido copiado de `docs/wiki/` (que se sigue sincronizando con el wiki de GitHub pero no se edita primero) más `changelog.md` en los dos idiomas. `website/pnpm-workspace.yaml` aprueba el build script de `esbuild` (`allowBuilds`), sin él `pnpm install` de pnpm 11 sale con error. No añadir `.go` en `website/`.
 
 ### Patrones Arquitectónicos
 
 1. **Dependency Inversion**: `LoggerImpl` depende de interfaces (`Formatter`, `Hook`), no de implementaciones
 2. **Option Pattern**: Configuración flexible con `New(WithLevel(...), WithFormatter(...))`
 3. **Interface Segregation**: Interfaces pequeñas y enfocadas (`Logger`, `Formatter`, `Hook`)
-4. **Zero Dependencies**: Solo usa `fatih/color` y `slack-go/slack` (ya existentes)
+4. **Zero Dependencies**: el core solo usa `fatih/color`. `slack-go/slack` vive en el submódulo `slack/` (`go list -deps ./ | grep slack-go` vacío en la raíz)
 
 ## API v3 vs v2
 
 ### v3 API (Moderna - Recomendada)
 
 ```go
-import "github.com/drossan/go_logs"
+import "github.com/drossan/go_logs/v3"
 
 // Crear logger con configuración
-logger := go_logs.New(
+logger, _ := go_logs.New(
     go_logs.WithLevel(go_logs.InfoLevel),
     go_logs.WithFormatter(go_logs.NewJSONFormatter()),
     go_logs.WithOutput(os.Stdout),
@@ -124,7 +89,7 @@ logger.LogCtx(ctx, go_logs.InfoLevel, "processing request")
 ### v2 API (Legacy - Backward Compatible)
 
 ```go
-import "github.com/drossan/go_logs"
+import "github.com/drossan/go_logs/v3"
 
 go_logs.Init() // Opcional, auto-inicializa
 go_logs.InfoLog("message")
@@ -138,7 +103,7 @@ go_logs.Infof("formatted %s", "message")
 
 ```bash
 # Nivel de log (syslog-style)
-LOG_LEVEL=info              # trace, debug, info, warn, error, fatal, silent
+LOG_LEVEL=info              # trace, debug, info, warn, error, fatal, silent (default: info)
 
 # Formato de salida
 LOG_FORMAT=text             # text (dev) o json (prod)
@@ -157,14 +122,20 @@ SLACK_TOKEN=xoxb-xxx
 SLACK_CHANNEL_ID=C123456
 ```
 
+Todas son opcionales. `Init()` (y la auto-inicialización de la API v2) **nunca termina el proceso**:
+
+- Variable vacía o ausente → se usa el valor por defecto sin avisar (`LOG_LEVEL=info`, booleanos a `false`).
+- Valor no válido (p. ej. `SAVE_LOG_FILE=quizas` o `LOG_LEVEL=loud`) → valor por defecto + aviso por stderr con el nombre de la variable y el valor recibido.
+- Fichero de log que no se puede abrir → aviso por stderr y guardado en fichero desactivado.
+
 ### Configuración Programática (v3)
 
 ```go
-logger := go_logs.New(
+logger, _ := go_logs.New(
     go_logs.WithLevel(go_logs.DebugLevel),
     go_logs.WithFormatter(go_logs.NewJSONFormatter()),
     go_logs.WithRotatingFile("/var/log/app.log", 100, 5),
-    go_logs.WithHook(go_logs.NewFuncHook(func(e *go_logs.Entry) error {
+    go_logs.WithHooks(go_logs.NewFuncHook(func(e *go_logs.Entry) error {
         // Custom hook logic
         return nil
     })),
@@ -193,6 +164,20 @@ GO111MODULE=on go tool cover -html=coverage.out
 # Build
 GO111MODULE=on go build ./...
 ```
+
+### CI (`.github/workflows/ci.yml`)
+
+En cada push y PR, un job en `ubuntu-latest` con Go `stable` ejecuta, en este orden y parando en el primer fallo, la misma secuencia que conviene lanzar en local antes de hacer push:
+
+```bash
+test -z "$(gofmt -l $(git ls-files '*.go'))"   # solo .go trackeados: excluye website/ y vendor/
+go vet ./... && (cd slack && go vet ./...)
+go test -race -count=1 ./...
+(cd slack && go test -race -count=1 ./...)       # el ./... de la raíz no incluye slack/
+GOOS=windows go build ./...                      # compilación cruzada, sin tests
+```
+
+`permissions: contents: read` y `concurrency` con `cancel-in-progress` por ref. Sin matriz de versiones, sin lint ni cobertura (fuera del plan `instalable-bugs-prod`).
 
 ## Niveles de Log (Syslog-style)
 
@@ -255,8 +240,8 @@ type Hook interface {
 }
 
 // Usar hook
-logger := go_logs.New(
-    go_logs.WithHook(myCustomHook),
+logger, _ := go_logs.New(
+    go_logs.WithHooks(myCustomHook),
 )
 ```
 
@@ -266,6 +251,9 @@ Rotación por tamaño sin dependencias externas:
 - Rota cuando alcanza LOG_MAX_SIZE MB
 - Mantiene hasta LOG_MAX_BACKUPS archivos
 - Buffered writes para performance
+- **Flush por entrada, sin fsync**: `writeEntry` llama a `Flush()` si el output implementa `Flusher` (`writer.go`) y nunca a `Sync()`. Lo implementan `RotatingFileWriter`, `EnhancedRotatingFileWriter`, `MultiWriter` y `SamplingWriter` (estos dos lo propagan a sus writers)
+- **`Logger.Sync()`** llama una vez al `Sync()` del output (flush + fsync en los writers de fichero) e ignora `EINVAL`/`ENOTTY`/`EBADF` por errno (`isIgnorableSyncErr`: stdout, tuberías, stdout dentro de `MultiWriter`). `MultiWriter.Sync/Flush` combinan errores con `errors.Join`, así que un error real no queda oculto por el de un terminal
+- Benchmark end-to-end `BenchmarkLoggerToRotatingFile` (Logger → JSON → fichero): ~3,3 µs/op (antes, con fsync por entrada, ~3,9 ms/op)
 
 ### Redactor
 
@@ -275,7 +263,7 @@ Enmascara automáticamente campos sensibles:
 - authorization, auth
 
 ```go
-logger := go_logs.New(
+logger, _ := go_logs.New(
     go_logs.WithCommonRedaction(),
 )
 // password=***, token=*** en todos los logs
@@ -283,13 +271,20 @@ logger := go_logs.New(
 
 ## Performance
 
+Números medidos en Apple M1 (`go test -bench=. -benchmem`, tarea 04), no estimados; reproducibles con los comandos de la sección anterior:
+
 | Métrica | Resultado | Target |
 |---------|-----------|--------|
-| Fast-path filtering | 0.32 ns/op | < 5 ns |
-| Field creation | 0.34 ns/op, 0 allocs | < 10 ns |
-| TextFormatter | 220.6 ns/op | < 500 ns |
-| JSONFormatter | 249.3 ns/op | < 1 µs |
-| RotatingFileWriter | 16M msg/sec | - |
+| Fast-path filtering (nivel filtrado) | ~8 ns/op, 0 allocs | < 50 ns |
+| Field creation (`Multiple`) | ~1.8 ns/op, 0 allocs | < 10 ns |
+| TextFormatter (entrada simple) | ~397 ns/op, 4 allocs | < 1 µs |
+| JSONFormatter (entrada simple) | ~1.4 µs/op, 4 allocs | < 2 µs |
+| `With()` child logger | ~630 ns/op, 14 allocs | - |
+| `RotatingFileWriter.Write` (flush sin fsync) | ~3.9 µs/op, 15 allocs | - |
+| Logger → JSON → `RotatingFileWriter` end-to-end | ~3.4 µs/op, 16 allocs | < 10 µs/op |
+| Logging concurrente (`-race`, varias goroutines) | ~1.9 µs/op, 15 allocs | - |
+
+Antes del fix de la tarea 04 (fsync por entrada vía `Sync()` en cada `writeEntry`), el end-to-end a fichero medía ~260 msg/s (~3,9 ms/op); con `Flush()` sin fsync baja a los ~3.4 µs/op de la tabla, muy por debajo del umbral informativo de 10 µs/op del plan.
 
 ## Migración v2 → v3
 
@@ -303,6 +298,7 @@ Opciones:
 ## Notas Importantes
 
 - **Thread-safe**: Toda la implementación es thread-safe con mutex
+- **Child loggers**: `With()` copia los campos del padre en un slice nuevo (los hijos nunca comparten memoria de campos) y copia la configuración bajo `RLock`. El **nivel es compartido por todo el árbol** (`*atomic.Int32` por puntero): `SetLevel` en padre, hijo o nieto afecta a todos, y el filtrado por nivel no toma el mutex
 - **Zero allocations**: Fields y level filtering no hacen allocations
 - **Backward compatible**: v2 API funciona sin cambios
 - **Context support**: Extrae trace_id, span_id automáticamente
@@ -322,6 +318,7 @@ Opciones:
 - `context.go`: Context propagation
 - `hook.go`: Hook interface
 - `rotating_writer.go`: RotatingFileWriter
+- `writer.go`: interfaz `Flusher` e `isIgnorableSyncErr` (errno por plataforma en `writer_errno*.go`)
 - `options.go`: Option pattern
 
 ### Archivos v2 (Backward Compatible)
@@ -329,11 +326,15 @@ Opciones:
 - `logs.go`: Implementación v2 legacy
 - `save.go`: Guardar a archivo v2
 - `config.go`: Configuración compartida
-- `adapters/slack_notifier.go`: SlackNotifier v2
-- `domain/notification.go`: Interfaz Notifier v2
+- `domain/notification.go`: Interfaz Notifier v2 (la implementa `slack.Notifier`; se registra con `SetNotifier`)
 
 ### Archivos v3
 - `hooks/slack_hook.go`: SlackHook v3
+
+### Slack (submódulo `slack/`)
+
+- Módulo `github.com/drossan/go_logs/slack/v3` (el sufijo `/vN` va al **final** de la ruta: `.../v3/slack` no admitiría versiones v3). `go.mod` con `require github.com/drossan/go_logs/v3 v3.1.0` + `replace => ../`; tag de release `slack/v3.1.0`. Tests: `cd slack && go test -race ./...` (el `./...` de la raíz no lo incluye).
+- API v2: `go_logs.SetNotifier(n domain.Notifier)` (nil desactiva, protegido por `notifierMu`). Con `NOTIFICATIONS_SLACK_ENABLED=1` y sin notificador, aviso por `warnOutput` una sola vez por proceso (`sync.Once` que `SetNotifier` no re-arma). Los errores del notificador se ignoran. `Init()` ya no lee `SLACK_TOKEN`/`SLACK_CHANNEL_ID`: lo hace `slack.NewNotifierFromEnv()`.
 
 ## Testing
 
@@ -342,13 +343,16 @@ Opciones:
 - Race detector clean
 - ~90% coverage en código crítico
 
-## Features Opcionales (Submódulos)
+## Paquetes Opcionales
 
 ### Metrics (Core - Siempre habilitado)
 
+`GetMetrics()` no está en la interfaz `Logger` (no todas las implementaciones acumulan métricas); se accede con type assertion sobre `*LoggerImpl`:
+
 ```go
 logger, _ := go_logs.New()
-metrics := logger.GetMetrics()
+impl := logger.(*go_logs.LoggerImpl)
+metrics := impl.GetMetrics()
 
 // Métricas disponibles
 fmt.Printf("Total logs: %d\n", metrics.Total())
@@ -362,20 +366,22 @@ snapshot := metrics.Snapshot()
 ### Async Logging (Submódulo - Opt-in)
 
 ```go
-import "github.com/drossan/go_logs/async"
+import "github.com/drossan/go_logs/v3/async"
 
 syncLogger, _ := go_logs.New(go_logs.WithLevel(go_logs.InfoLevel))
 asyncLogger := async.Wrap(syncLogger, 1000) // buffer size 1000
-defer asyncLogger.Sync()
+defer asyncLogger.Close() // drena y detiene el worker; Sync() no lo detiene
 
 // Non-blocking logging
 asyncLogger.Info("Server started", go_logs.Int("port", 8080))
 ```
 
+Los hijos (`With()`) comparten por puntero un `core` no exportado (buffer, worker, contador `pending`, `closeOnce`), así que `Sync()` en cualquier nodo espera a todo el árbol. `Close()` solo actúa en la raíz (idempotente con `sync.Once`); en un hijo es no-op. `Fatal` drena primero y añade los campos del hijo.
+
 ### Dynamic Level via HTTP (Submódulo - Opt-in)
 
 ```go
-import httplogs "github.com/drossan/go_logs/http"
+import httplogs "github.com/drossan/go_logs/v3/http"
 
 logger, _ := go_logs.New(go_logs.WithLevel(go_logs.InfoLevel))
 handler := httplogs.NewDynamicLevelHandler(logger, httplogs.Config{
@@ -392,7 +398,7 @@ http.Handle("/debug/", handler)
 ### SIGHUP Handler (Submódulo - Opt-in)
 
 ```go
-import "github.com/drossan/go_logs/signal"
+import "github.com/drossan/go_logs/v3/signal"
 
 writer, _ := go_logs.NewRotatingFileWriter("/var/log/app.log", 100, 5)
 logger, _ := go_logs.New(go_logs.WithOutput(writer))

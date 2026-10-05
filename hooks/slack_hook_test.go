@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/drossan/go_logs"
+	"github.com/drossan/go_logs/v3"
 )
 
 // mockSlackNotifier is a mock implementation of SlackNotifier for testing

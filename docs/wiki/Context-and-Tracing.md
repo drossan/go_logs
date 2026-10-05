@@ -167,7 +167,7 @@ import (
     "net/http"
     "os"
 
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
     "github.com/google/uuid"
 )
 
@@ -363,7 +363,7 @@ import (
     "context"
     "go.opentelemetry.io/otel"
     "go.opentelemetry.io/otel/trace"
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func processRequest(ctx context.Context) {
@@ -417,7 +417,7 @@ package main
 import (
     "context"
 
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
     "google.golang.org/grpc"
     "google.golang.org/grpc/metadata"
 )

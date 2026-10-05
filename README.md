@@ -1,7 +1,8 @@
 # Go_Logs v3 - Biblioteca de Logging Moderna para Go
 
-[![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://pkg.go.dev/github.com/drossan/go_logs)
+[![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://pkg.go.dev/github.com/drossan/go_logs/v3)
 [![Go Report Card](https://goreportcard.com/badge/github.com/drossan/go_logs)](https://goreportcard.com/report/github.com/drossan/go_logs)
+[![CI](https://github.com/drossan/go_logs/actions/workflows/ci.yml/badge.svg)](https://github.com/drossan/go_logs/actions/workflows/ci.yml)
 
 Biblioteca de logging estructurado para Go con campos tipados, múltiples formatters (Text/JSON), child loggers, context propagation, sistema de hooks extensible, y rotación de archivos. **100% backward compatible con v2**.
 
@@ -25,12 +26,12 @@ Biblioteca de logging estructurado para Go con campos tipados, múltiples format
 - Archivo persistente con buffering
 - Notificaciones Slack configurables
 - Thread-safe con mutex
-- Cero dependencias externas (solo color y slack)
+- Cero dependencias externas en el core (solo `fatih/color`); Slack vive en el submódulo opcional `github.com/drossan/go_logs/slack/v3`
 
 ## Instalación
 
 ```bash
-go get github.com/drossan/go_logs@v3
+go get github.com/drossan/go_logs/v3@latest
 ```
 
 ## Inicio Rápido
@@ -42,12 +43,12 @@ package main
 
 import (
     "os"
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func main() {
     // Crear logger con configuración
-    logger := go_logs.New(
+    logger, _ := go_logs.New(
         go_logs.WithLevel(go_logs.InfoLevel),
         go_logs.WithFormatter(go_logs.NewTextFormatter()),
         go_logs.WithOutput(os.Stdout),
@@ -73,7 +74,7 @@ func main() {
 ```go
 package main
 
-import "github.com/drossan/go_logs"
+import "github.com/drossan/go_logs/v3"
 
 func main() {
     go_logs.Init()         // Opcional, auto-inicializa
@@ -118,7 +119,7 @@ JSON estructurado para ELK, Loki, Datadog:
 
 ```go
 // Usar JSONFormatter
-logger := go_logs.New(
+logger, _ := go_logs.New(
     go_logs.WithFormatter(go_logs.NewJSONFormatter()),
 )
 ```
@@ -143,7 +144,7 @@ Crea loggers con campos pre-inyectados que se heredan:
 
 ```go
 // Logger base
-logger := go_logs.New(go_logs.WithLevel(go_logs.InfoLevel))
+logger, _ := go_logs.New(go_logs.WithLevel(go_logs.InfoLevel))
 
 // Child logger con campos de request
 reqLogger := logger.With(
@@ -155,6 +156,16 @@ reqLogger := logger.With(
 reqLogger.Info("request started")
 reqLogger.Info("processing data")
 reqLogger.Error("validation failed")
+```
+
+Cada hijo recibe su propia copia de los campos: dos hijos del mismo padre nunca se pisan los campos y el padre no se modifica. Si padre e hijo declaran la misma clave, la línea lleva las dos apariciones (no se deduplican).
+
+**El nivel es compartido por todo el árbol de loggers**: `SetLevel` sobre el padre, un hijo o un nieto cambia el nivel de todos, incluidos los hijos creados antes. Así, `http.DynamicLevelHandler` sobre el logger raíz afecta también a los loggers de request.
+
+```go
+reqLogger := logger.With(go_logs.String("request_id", "abc-123"))
+logger.SetLevel(go_logs.DebugLevel)
+reqLogger.Debug("visible") // se emite: el hijo ve el nivel Debug del padre
 ```
 
 ## Caller Info
@@ -201,7 +212,7 @@ Extrae automáticamente trace_id y span_id del contexto:
 ```go
 import (
     "context"
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func handler(ctx context.Context) {
@@ -210,7 +221,7 @@ func handler(ctx context.Context) {
     ctx = go_logs.WithSpanID(ctx, "span-101")
 
     // El logger extrae automáticamente del contexto
-    logger := go_logs.New()
+    logger, _ := go_logs.New()
     logger.LogCtx(ctx, go_logs.InfoLevel, "processing request")
     // Output incluye: trace_id=trace-789 span_id=span-101
 }
@@ -227,35 +238,55 @@ func myHook(entry *go_logs.Entry) error {
     return nil
 }
 
-logger := go_logs.New(
-    go_logs.WithHook(go_logs.NewFuncHook(myHook)),
+logger, _ := go_logs.New(
+    go_logs.WithHooks(go_logs.NewFuncHook(myHook)),
 )
 ```
 
-### Slack Hook
+### Slack
+
+Slack vive fuera del core, en su propio módulo, para que quien solo loguea por consola no arrastre el cliente de Slack:
+
+```bash
+go get github.com/drossan/go_logs/slack/v3
+```
 
 ```go
-import "github.com/drossan/go_logs/hooks"
-
-slackHook := hooks.NewSlackHook("xoxb-token", "C123456")
-logger := go_logs.New(
-    go_logs.WithHook(slackHook),
+import (
+    "github.com/drossan/go_logs/v3"
+    "github.com/drossan/go_logs/v3/hooks"
+    "github.com/drossan/go_logs/slack/v3"
 )
+
+notifier, err := slack.NewNotifier("xoxb-token", "C123456") // o slack.NewNotifierFromEnv()
+if err != nil {
+    // credenciales vacías: notifier queda deshabilitado (no envía nada)
+}
+
+// API v3: hook por nivel
+logger, _ := go_logs.New(
+    go_logs.WithHooks(hooks.NewSlackHook(notifier, go_logs.ErrorLevel)),
+)
+
+// API v2: ErrorLog, FatalLog… con NOTIFICATIONS_SLACK_ENABLED=1
+go_logs.SetNotifier(notifier)
 ```
+
+Ver [`slack/README.md`](slack/README.md) y la sección "Slack en v3.1" de [`MIGRATION.md`](MIGRATION.md).
 
 ### OpenTelemetry / OTLP Hook
 
 Envía logs a un collector OpenTelemetry:
 
 ```go
-import "github.com/drossan/go_logs/otel"
+import "github.com/drossan/go_logs/v3/otel"
 
 // Hook simple
 otelHook := otel.NewOTLPHook("http://localhost:4318/v1/logs")
 defer otelHook.Close()
 
-logger := go_logs.New(
-    go_logs.WithHook(otelHook),
+logger, _ := go_logs.New(
+    go_logs.WithHooks(otelHook),
 )
 
 // Con configuración avanzada
@@ -274,7 +305,7 @@ hook := otel.NewOTLPHookWithExporter(exporter, go_logs.InfoLevel)
 Envía logs al syslog local o remoto:
 
 ```go
-import "github.com/drossan/go_logs/hooks"
+import "github.com/drossan/go_logs/v3/hooks"
 
 // Syslog local
 syslogHook, _ := hooks.NewSyslogHook("myapp")
@@ -286,8 +317,8 @@ remoteHook, _ := hooks.NewNetworkSyslogHook("tcp", "logs.example.com:514", "myap
 // Con formateador RFC5424
 syslogHook.SetFormatter(hooks.RFC5424Formatter("myapp"))
 
-logger := go_logs.New(
-    go_logs.WithHook(syslogHook),
+logger, _ := go_logs.New(
+    go_logs.WithHooks(syslogHook),
 )
 ```
 
@@ -296,7 +327,7 @@ logger := go_logs.New(
 Rotación por tamaño sin dependencias externas:
 
 ```go
-logger := go_logs.New(
+logger, _ := go_logs.New(
     go_logs.WithRotatingFile("/var/log/app.log", 100, 5),
     // 100MB max, 5 backups
 )
@@ -342,12 +373,24 @@ logger, _ := go_logs.New(
 // Logs van a archivo Y consola simultáneamente
 ```
 
+### Flush por entrada y `Sync()`
+
+- **Flush por entrada, sin fsync**: si el output implementa `go_logs.Flusher` (`Flush() error`), el logger lo llama tras cada entrada. `RotatingFileWriter`, `EnhancedRotatingFileWriter`, `MultiWriter`, `SamplingWriter` y `*bufio.Writer` lo implementan (los dos wrappers lo propagan a sus writers), así que cada línea es legible en el fichero al momento, sin pagar un fsync por línea.
+- **`logger.Sync()` hace flush + fsync**: llama una vez al `Sync()` del output si lo tiene. Llámalo antes de salir (`defer logger.Sync()`).
+- **Errores ignorados**: `Sync()` descarta `EINVAL`, `ENOTTY` y `EBADF`, que son los que devuelven terminales y tuberías (p. ej. `os.Stdout`, también dentro de un `MultiWriter`). Cualquier otro error se devuelve; con `MultiWriter` se combinan con `errors.Join`, así que el error real de un writer no queda oculto por el de un terminal.
+
+```go
+file, _ := go_logs.NewRotatingFileWriter("app.log", 100, 5)
+logger, _ := go_logs.New(go_logs.WithOutput(go_logs.NewMultiWriter(file, os.Stdout)))
+defer logger.Sync() // fsync del fichero; el EBADF/EINVAL de stdout se ignora
+```
+
 ## Redactor de Datos Sensibles
 
 Enmascara automáticamente campos sensibles:
 
 ```go
-logger := go_logs.New(
+logger, _ := go_logs.New(
     go_logs.WithCommonRedaction(),
 )
 
@@ -359,15 +402,16 @@ logger.Info("user login",
 
 Campos enmascarados por defecto: `password`, `passwd`, `pwd`, `token`, `secret`, `api_key`, `apikey`, `authorization`, `auth`.
 
-## Submódulos Opcionales (Arquitectura Híbrida)
+## Paquetes Opcionales
 
 ### Metrics (Core - Siempre habilitado)
 
-Estadísticas de logging con zero overhead:
+Estadísticas de logging con zero overhead. `GetMetrics()` no está en la interfaz `Logger` (no todas las implementaciones acumulan métricas); se accede con type assertion sobre `*go_logs.LoggerImpl`:
 
 ```go
 logger, _ := go_logs.New()
-metrics := logger.GetMetrics()
+impl := logger.(*go_logs.LoggerImpl)
+metrics := impl.GetMetrics()
 
 // Métricas disponibles
 fmt.Printf("Total logs: %d\n", metrics.Total())
@@ -387,14 +431,14 @@ metrics.Reset()
 Logging non-blocking para alta carga:
 
 ```go
-import "github.com/drossan/go_logs/async"
+import "github.com/drossan/go_logs/v3/async"
 
 // Crear logger síncrono base
 syncLogger, _ := go_logs.New(go_logs.WithLevel(go_logs.InfoLevel))
 
 // Envolver con async (buffer size 1000)
 asyncLogger := async.Wrap(syncLogger, 1000)
-defer asyncLogger.Sync()
+defer asyncLogger.Close() // drena lo pendiente y detiene la goroutine worker
 
 // Non-blocking logging
 asyncLogger.Info("Server started", go_logs.Int("port", 8080))
@@ -409,12 +453,16 @@ asyncLogger := async.WrapWithConfig(syncLogger, async.Config{
 childLogger := asyncLogger.With(go_logs.String("request_id", "abc-123"))
 ```
 
+- Los hijos creados con `With()` comparten el buffer, la goroutine worker y el contador de pendientes de la raíz: `childLogger.Sync()` espera a que se escriban sus entradas (y las del resto del árbol).
+- `Close()` solo tiene efecto en la raíz devuelta por `Wrap`/`WrapWithConfig`, es idempotente, y en un hijo es no-op (devuelve `nil`). Lo que se registre después de `Close()` se descarta.
+- `Sync()` no detiene la goroutine worker: sin `Close()` sigue viva hasta que termina el proceso.
+
 ### Dynamic Level via HTTP (Submódulo - Opt-in)
 
 Cambiar nivel de log en runtime via HTTP:
 
 ```go
-import httplogs "github.com/drossan/go_logs/http"
+import httplogs "github.com/drossan/go_logs/v3/http"
 
 logger, _ := go_logs.New(go_logs.WithLevel(go_logs.InfoLevel))
 
@@ -438,7 +486,7 @@ http.Handle("/debug/", handler)
 Rotación de logs al recibir señal del sistema:
 
 ```go
-import "github.com/drossan/go_logs/signal"
+import "github.com/drossan/go_logs/v3/signal"
 
 writer, _ := go_logs.NewRotatingFileWriter("/var/log/app.log", 100, 5)
 logger, _ := go_logs.New(go_logs.WithOutput(writer))
@@ -459,7 +507,7 @@ handler := signal.NewSIGHUPHandler(rotator, syscall.SIGUSR1, syscall.SIGUSR2)
 
 ```bash
 # Nivel de log (syslog-style)
-LOG_LEVEL=info              # trace, debug, info, warn, error, fatal, silent
+LOG_LEVEL=info              # trace, debug, info, warn, error, fatal, silent (default: info)
 
 # Formato de salida
 LOG_FORMAT=text             # text (dev) o json (prod)
@@ -473,7 +521,8 @@ LOG_FILE_PATH=/var/log
 LOG_MAX_SIZE=100            # MB antes de rotar
 LOG_MAX_BACKUPS=5           # Archivos backup a mantener
 
-# Slack
+# Slack (las lee slack.NewNotifierFromEnv del submódulo go_logs/slack/v3;
+# NOTIFICATIONS_SLACK_ENABLED=1 exige registrar el notificador con go_logs.SetNotifier)
 SLACK_TOKEN=xoxb-xxx
 SLACK_CHANNEL_ID=C123456
 
@@ -485,15 +534,21 @@ NOTIFICATION_INFO_LOG=1
 NOTIFICATION_SUCCESS_LOG=1
 ```
 
+Todas son opcionales. `Init()` (y la auto-inicialización de la API v2) **nunca termina el proceso**:
+
+- Variable vacía o ausente → se usa el valor por defecto sin avisar (`LOG_LEVEL=info`, booleanos a `false`).
+- Valor no válido (p. ej. `SAVE_LOG_FILE=quizas` o `LOG_LEVEL=loud`) → valor por defecto + aviso por stderr con el nombre de la variable y el valor recibido.
+- Fichero de log que no se puede abrir → aviso por stderr y guardado en fichero desactivado.
+
 ### Configuración Programática (v3)
 
 ```go
-logger := go_logs.New(
+logger, _ := go_logs.New(
     go_logs.WithLevel(go_logs.DebugLevel),
     go_logs.WithFormatter(go_logs.NewJSONFormatter()),
     go_logs.WithOutput(os.Stdout),
     go_logs.WithRotatingFile("/var/log/app.log", 100, 5),
-    go_logs.WithHook(myCustomHook),
+    go_logs.WithHooks(myCustomHook),
     go_logs.WithCommonRedaction(),
 )
 ```
@@ -724,7 +779,7 @@ Ver [MIGRATION.md](MIGRATION.md) para guía completa.
 go_logs.InfoLog("legacy code")
 
 // v3 (nuevo código)
-logger := go_logs.New(go_logs.WithLevel(go_logs.InfoLevel))
+logger, _ := go_logs.New(go_logs.WithLevel(go_logs.InfoLevel))
 logger.Info("new code", go_logs.String("feature", "v3"))
 ```
 
@@ -755,79 +810,25 @@ GO111MODULE=on go tool cover -html=coverage.out
 - [MIGRATION.md](MIGRATION.md) - Guía de migración v2 → v3
 - [IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md) - Resumen técnico
 - [CLAUDE.md](CLAUDE.md) - Guía para Claude Code
-- [GoDoc](https://pkg.go.dev/github.com/drossan/go_logs) - Referencia de API
+- [GoDoc](https://pkg.go.dev/github.com/drossan/go_logs/v3) - Referencia de API
 
 ## Changelog
 
-### v3.5 (Actual)
+### v3.1.0 (Actual)
 
-**Arquitectura Híbrida** - Core + submódulos opcionales
+> **Nota de instalación**: las tags `v3.0.0`-`v3.0.4` se publicaron con `module github.com/drossan/go_logs` (sin el sufijo `/v3` que exige Go Modules), así que `go get github.com/drossan/go_logs/v3` nunca resolvió contra ellas. Son historia del proyecto, pero **nunca fueron instalables bajo `/v3`**; no hay nada que despublicar, solo documentarlo. `v3.1.0` es el primer tag con `go.mod` correcto (`module github.com/drossan/go_logs/v3`) y módulo único instalable.
 
-- **Metrics (Core)**: Estadísticas de logging con zero overhead
-  - Contadores por nivel (Total, Info, Error, etc.)
-  - Contador de logs dropeados (async)
-  - Snapshots para monitoring
-  - Thread-safe con atomic operations
+Funcionalidad acumulada de las series `v3.0.x` (antes repartida en secciones v3.1-v3.5, consolidadas aquí como una sola historia) más los fixes de instalabilidad y producción de este release:
 
-- **async/** (Submódulo): Logging asíncrono non-blocking
-  - Buffered channel para alto throughput
-  - Drop-on-overflow cuando buffer lleno
-  - Graceful shutdown con timeout
-  - Métricas compartidas con logger síncrono
-
-- **http/** (Submódulo): Log level dinámico via HTTP
-  - GET /log-level - Obtener nivel actual
-  - PUT /log-level - Cambiar nivel
-  - GET /log-level/metrics - Métricas de logging
-  - Bearer token authentication
-  - Rate limiting
-  - IP whitelisting (exacto y CIDR)
-
-- **signal/** (Submódulo): SIGHUP handler para rotación
-  - Rotación de logs al recibir señal del sistema
-  - Compatible con logrotate de Linux
-  - Señales personalizables
-  - Thread-safe
-
-### v3.4
-
-- OpenTelemetry/OTLP: Envío de logs a collectors OpenTelemetry
-- Syslog Hook: Integración con syslog local y remoto (RFC5424)
-- OTLPExporter con buffering y flush automático
-- NetworkSyslogHook para servidores remotos
-
-### v3.3
-
-- Sampling/Rate Limiting: Control de volumen de logs
-- Global Logger: Acceso global con SetDefault() y Global*()
-- Testing Utils: CaptureBuffer y MockLogger para tests
-- SamplingWriter con callbacks de drop
-
-### v3.2
-
-- MultiWriter: Salida simultánea a múltiples destinos
-- Rotación por tiempo: Daily (diario) y Hourly (horario)
-- Compresión gzip: Archivos rotados comprimidos automáticamente
-- MaxAge: Limpieza automática de archivos antiguos
-- EnhancedRotatingFileWriter con configuración completa
-
-### v3.1
-
-- Caller Info: archivo, línea y función en cada log
-- Stack Traces: captura automática en Error+
-- WithCaller(), WithStackTrace(), WithStackTraceLevel() options
-
-### v3.0
-
-- Structured logging con campos tipados
-- Child loggers con propagación de campos
-- Context propagation real (trace_id, span_id)
-- Dual formatters: TextFormatter + JSONFormatter
-- Sistema de hooks extensible
-- RotatingFileWriter sin dependencias
-- Redactor de datos sensibles
-- Interfaz Logger inyectable
-- 100% backward compatible con v2
+- **Módulo único instalable**: `go get github.com/drossan/go_logs/v3@v3.1.0` resuelve; `async/`, `http/`, `signal/`, `domain/` y `hooks/` son paquetes del mismo módulo (sin `go.mod` ni `replace` propios); Slack vive aparte en el submódulo real `github.com/drossan/go_logs/slack/v3`, el único con ciclo de versión independiente.
+- **Producción sin sorpresas**: `Init()` ya no hace `log.Fatalf` con variables de entorno vacías o inválidas (avisa por stderr y usa el default); `With()` copia los campos del hijo sin compartir memoria con el padre (antes había data race confirmada con `-race`); el nivel de log se comparte por todo el árbol de loggers.
+- **Flush real sin fsync por línea**: `RotatingFileWriter`, `EnhancedRotatingFileWriter`, `MultiWriter` y `SamplingWriter` implementan `Flusher`; `Sync()` deja de ser no-op y de hacer fsync por cada entrada (antes ~260 msg/s a fichero, ahora benchmark end-to-end por debajo de 10 µs/op).
+- **`async`**: núcleo compartido entre padre e hijos, `Close()` idempotente (`sync.Once`) y no-op en hijos.
+- **Metrics (core)**: estadísticas de logging con zero overhead, contadores por nivel, contador de dropeados y snapshots para monitoring, todo con operaciones atómicas.
+- **`http/`**: log level dinámico via HTTP (GET/PUT `/log-level`, métricas, bearer token, rate limiting, IP whitelisting).
+- **`signal/`**: handler de SIGHUP para rotación, compatible con `logrotate`.
+- **Hooks, Caller Info, Stack Traces, Sampling/Rate Limiting, Global Logger, Testing Utils, MultiWriter, rotación por tiempo (Daily/Hourly) con compresión gzip y `MaxAge`, OpenTelemetry/OTLP, Syslog Hook**: funcionalidad de las antiguas series v3.1-v3.5, ya documentada en las secciones correspondientes de este README.
+- **CI y documentación**: `ci.yml` (gofmt, vet, `test -race`) en cada push/PR; sitio VitePress publicado en GitHub Pages con contenido corregido; `LICENSE` MIT.
 
 ### v2.0
 

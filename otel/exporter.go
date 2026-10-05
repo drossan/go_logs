@@ -8,20 +8,20 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drossan/go_logs"
+	"github.com/drossan/go_logs/v3"
 )
 
 // OTLPExporter sends logs to an OpenTelemetry collector via OTLP protocol
 type OTLPExporter struct {
-	endpoint    string
-	headers     map[string]string
-	client      *http.Client
-	mu          sync.Mutex
-	pending     []go_logs.Entry
-	maxPending  int
+	endpoint      string
+	headers       map[string]string
+	client        *http.Client
+	mu            sync.Mutex
+	pending       []go_logs.Entry
+	maxPending    int
 	flushInterval time.Duration
-	stopCh      chan struct{}
-	flushCh     chan struct{}
+	stopCh        chan struct{}
+	flushCh       chan struct{}
 }
 
 // OTLPConfig holds configuration for the OTLP exporter
@@ -68,11 +68,11 @@ func NewOTLPExporterWithConfig(config OTLPConfig) *OTLPExporter {
 		endpoint:      config.Endpoint,
 		headers:       config.Headers,
 		client:        &http.Client{Timeout: config.Timeout},
-		maxPending:     config.MaxPending,
-		flushInterval:  config.FlushInterval,
-		pending:        make([]go_logs.Entry, 0, config.MaxPending),
-		stopCh:         make(chan struct{}),
-		flushCh:        make(chan struct{}, 1),
+		maxPending:    config.MaxPending,
+		flushInterval: config.FlushInterval,
+		pending:       make([]go_logs.Entry, 0, config.MaxPending),
+		stopCh:        make(chan struct{}),
+		flushCh:       make(chan struct{}, 1),
 	}
 
 	// Start background flusher
@@ -103,7 +103,7 @@ func (e *OTLPExporter) Flush() error {
 	e.pending = make([]go_logs.Entry, 0, e.maxPending)
 	e.mu.Unlock()
 
-	if len(entries) == 0{
+	if len(entries) == 0 {
 		return nil
 	}
 
@@ -146,7 +146,7 @@ func (e *OTLPExporter) marshalOTLP(entries []go_logs.Entry) ([]byte, error) {
 
 	for i, entry := range entries {
 		attrs := map[string]interface{}{
-		"severity": entry.Level.String(),
+			"severity": entry.Level.String(),
 		}
 
 		// Add fields as attributes
@@ -163,8 +163,8 @@ func (e *OTLPExporter) marshalOTLP(entries []go_logs.Entry) ([]byte, error) {
 
 		logs[i] = map[string]interface{}{
 			"observedTimestamp": entry.Timestamp.Format(time.RFC3339Nano),
-			"body":               entry.Message,
-			"attributes":         attrs,
+			"body":              entry.Message,
+			"attributes":        attrs,
 		}
 	}
 

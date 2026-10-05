@@ -1,0 +1,64 @@
+# Minimal CI for the go_logs module (github.com/drossan/go_logs/v3) and its
+# only submodule, slack/ (github.com/drossan/go_logs/slack/v3, own go.mod).
+# The root `./...` does not include slack/, so vet and tests run twice.
+# Run the same sequence locally before pushing (see CLAUDE.md).
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# Read-only token: this workflow never writes to the repo.
+permissions:
+  contents: read
+
+# A new push to the same ref cancels the run still in progress.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Go stable; go.mod requires go 1.27.0 (GOTOOLCHAIN=auto downloads it if needed).
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: true
+
+      # Fails listing any tracked .go file not in gofmt format. Listing only
+      # tracked files excludes website/ and vendor/ by construction.
+      - name: gofmt
+        run: |
+          unformatted="$(gofmt -l $(git ls-files '*.go'))"
+          if [ -n "$unformatted" ]; then
+            echo "Files not formatted with gofmt:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: go vet (root)
+        run: go vet ./...
+
+      - name: go vet (slack/)
+        working-directory: slack
+        run: go vet ./...
+
+      # -count=1 disables the test cache so every run really executes.
+      - name: go test -race (root)
+        run: go test -race -count=1 ./...
+
+      - name: go test -race (slack/)
+        working-directory: slack
+        run: go test -race -count=1 ./...
+
+      # Cross-compilation only (no tests): guards the //go:build tags that keep
+      # hooks/syslog_hook.go out of Windows builds.
+      - name: Cross-compile for Windows
+        run: GOOS=windows go build ./...

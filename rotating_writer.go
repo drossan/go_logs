@@ -16,13 +16,14 @@ import (
 // This is a zero-dependency implementation using only Go standard library.
 //
 // Example:
-//   writer, err := go_logs.NewRotatingFileWriter("app.log", 100, 3)
-//   if err != nil {
-//       log.Fatal(err)
-//   }
-//   defer writer.Close()
 //
-//   logger := go_logs.New(go_logs.WithOutput(writer))
+//	writer, err := go_logs.NewRotatingFileWriter("app.log", 100, 3)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	defer writer.Close()
+//
+//	logger := go_logs.New(go_logs.WithOutput(writer))
 type RotatingFileWriter struct {
 	// filename is the base name of the log file (without suffix)
 	filename string
@@ -213,7 +214,20 @@ func (w *RotatingFileWriter) openFile() error {
 	return nil
 }
 
-// Sync flushes any buffered data to the underlying file.
+// Flush implements Flusher: it writes the buffered data to the file without
+// fsync. The logger calls it after every entry, so each line is visible in
+// the file immediately. It is a no-op after Close.
+func (w *RotatingFileWriter) Flush() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if w.writer == nil {
+		return nil // Already closed
+	}
+	return w.writer.Flush()
+}
+
+// Sync flushes any buffered data to the underlying file and fsyncs it.
 //
 // This method should be called before exiting the application to ensure
 // all buffered log messages are written to disk.

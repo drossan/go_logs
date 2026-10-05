@@ -16,12 +16,14 @@ import (
 // If Slack notifications are enabled for INFO level, the message is sent to Slack.
 //
 // Parameters:
-//   format - The format string (follows fmt.Sprintf syntax)
-//   args   - Arguments for the format string
+//
+//	format - The format string (follows fmt.Sprintf syntax)
+//	args   - Arguments for the format string
 //
 // Example:
-//   Infof("Server started on port %d", 8080)
-//   Infof("User %s logged in from %s", username, ipAddress)
+//
+//	Infof("Server started on port %d", 8080)
+//	Infof("User %s logged in from %s", username, ipAddress)
 //
 // Environment variables:
 //   - SAVE_LOG_FILE: Enable file logging (0 or 1)
@@ -39,11 +41,13 @@ func Infof(format string, args ...interface{}) {
 // If Slack notifications are enabled for ERROR level, the message is sent to Slack.
 //
 // Parameters:
-//   format - The format string (follows fmt.Sprintf syntax)
-//   args   - Arguments for the format string
+//
+//	format - The format string (follows fmt.Sprintf syntax)
+//	args   - Arguments for the format string
 //
 // Example:
-//   Errorf("Failed to connect to %s: %v", host, err)
+//
+//	Errorf("Failed to connect to %s: %v", host, err)
 //
 // Environment variables:
 //   - SAVE_LOG_FILE: Enable file logging (0 or 1)
@@ -61,11 +65,13 @@ func Errorf(format string, args ...interface{}) {
 // If Slack notifications are enabled for WARNING level, the message is sent to Slack.
 //
 // Parameters:
-//   format - The format string (follows fmt.Sprintf syntax)
-//   args   - Arguments for the format string
+//
+//	format - The format string (follows fmt.Sprintf syntax)
+//	args   - Arguments for the format string
 //
 // Example:
-//   Warningf("API version %s is deprecated, use %s", oldVersion, newVersion)
+//
+//	Warningf("API version %s is deprecated, use %s", oldVersion, newVersion)
 //
 // Environment variables:
 //   - SAVE_LOG_FILE: Enable file logging (0 or 1)
@@ -83,11 +89,13 @@ func Warningf(format string, args ...interface{}) {
 // If Slack notifications are enabled for SUCCESS level, the message is sent to Slack.
 //
 // Parameters:
-//   format - The format string (follows fmt.Sprintf syntax)
-//   args   - Arguments for the format string
+//
+//	format - The format string (follows fmt.Sprintf syntax)
+//	args   - Arguments for the format string
 //
 // Example:
-//   Successf("Processed %d records in %dms", count, duration)
+//
+//	Successf("Processed %d records in %dms", count, duration)
 //
 // Environment variables:
 //   - SAVE_LOG_FILE: Enable file logging (0 or 1)
@@ -106,11 +114,13 @@ func Successf(format string, args ...interface{}) {
 // After logging, the program terminates by calling log.Fatal().
 //
 // Parameters:
-//   format - The format string (follows fmt.Sprintf syntax)
-//   args   - Arguments for the format string
+//
+//	format - The format string (follows fmt.Sprintf syntax)
+//	args   - Arguments for the format string
 //
 // Example:
-//   Fatalf("Critical error: %v", err)
+//
+//	Fatalf("Critical error: %v", err)
 //
 // Environment variables:
 //   - SAVE_LOG_FILE: Enable file logging (0 or 1)
@@ -127,12 +137,14 @@ func Fatalf(format string, args ...interface{}) {
 // Future versions will extract trace IDs from context and include them in log messages.
 //
 // Parameters:
-//   ctx     - The context (can be used for tracing, cancellation, etc.)
-//   message - The informational message to log
+//
+//	ctx     - The context (can be used for tracing, cancellation, etc.)
+//	message - The informational message to log
 //
 // Example:
-//   ctx := context.Background()
-//   InfoLogCtx(ctx, "Request processed successfully")
+//
+//	ctx := context.Background()
+//	InfoLogCtx(ctx, "Request processed successfully")
 func InfoLogCtx(ctx context.Context, message string) {
 	// TODO: Extract trace ID from context and include in log
 	InfoLog(message)
@@ -145,12 +157,14 @@ func InfoLogCtx(ctx context.Context, message string) {
 // Future versions will extract trace IDs from context and include them in log messages.
 //
 // Parameters:
-//   ctx     - The context (can be used for tracing, cancellation, etc.)
-//   message - The error message to log
+//
+//	ctx     - The context (can be used for tracing, cancellation, etc.)
+//	message - The error message to log
 //
 // Example:
-//   ctx := context.Background()
-//   ErrorLogCtx(ctx, "Failed to process request")
+//
+//	ctx := context.Background()
+//	ErrorLogCtx(ctx, "Failed to process request")
 func ErrorLogCtx(ctx context.Context, message string) {
 	// TODO: Extract trace ID from context and include in log
 	ErrorLog(message)
@@ -163,12 +177,14 @@ func ErrorLogCtx(ctx context.Context, message string) {
 // Future versions will extract trace IDs from context and include them in log messages.
 //
 // Parameters:
-//   ctx     - The context (can be used for tracing, cancellation, etc.)
-//   message - The warning message to log
+//
+//	ctx     - The context (can be used for tracing, cancellation, etc.)
+//	message - The warning message to log
 //
 // Example:
-//   ctx := context.Background()
-//   WarningLogCtx(ctx, "Deprecated API usage detected")
+//
+//	ctx := context.Background()
+//	WarningLogCtx(ctx, "Deprecated API usage detected")
 func WarningLogCtx(ctx context.Context, message string) {
 	// TODO: Extract trace ID from context and include in log
 	WarningLog(message)
@@ -181,12 +197,14 @@ func WarningLogCtx(ctx context.Context, message string) {
 // Future versions will extract trace IDs from context and include them in log messages.
 //
 // Parameters:
-//   ctx     - The context (can be used for tracing, cancellation, etc.)
-//   message - The success message to log
+//
+//	ctx     - The context (can be used for tracing, cancellation, etc.)
+//	message - The success message to log
 //
 // Example:
-//   ctx := context.Background()
-//   SuccessLogCtx(ctx, "Operation completed successfully")
+//
+//	ctx := context.Background()
+//	SuccessLogCtx(ctx, "Operation completed successfully")
 func SuccessLogCtx(ctx context.Context, message string) {
 	// TODO: Extract trace ID from context and include in log
 	SuccessLog(message)
@@ -198,13 +216,15 @@ func SuccessLogCtx(ctx context.Context, message string) {
 // The context parameter is accepted for distributed tracing support.
 //
 // Parameters:
-//   ctx    - The context (can be used for tracing, cancellation, etc.)
-//   format - The format string (follows fmt.Sprintf syntax)
-//   args   - Arguments for the format string
+//
+//	ctx    - The context (can be used for tracing, cancellation, etc.)
+//	format - The format string (follows fmt.Sprintf syntax)
+//	args   - Arguments for the format string
 //
 // Example:
-//   ctx := context.Background()
-//   InfoLogCtxf(ctx, "User %s logged in from %s", username, ipAddress)
+//
+//	ctx := context.Background()
+//	InfoLogCtxf(ctx, "User %s logged in from %s", username, ipAddress)
 func InfoLogCtxf(ctx context.Context, format string, args ...interface{}) {
 	message := fmt.Sprintf(format, args...)
 	InfoLogCtx(ctx, message)
@@ -216,13 +236,15 @@ func InfoLogCtxf(ctx context.Context, format string, args ...interface{}) {
 // The context parameter is accepted for distributed tracing support.
 //
 // Parameters:
-//   ctx    - The context (can be used for tracing, cancellation, etc.)
-//   format - The format string (follows fmt.Sprintf syntax)
-//   args   - Arguments for the format string
+//
+//	ctx    - The context (can be used for tracing, cancellation, etc.)
+//	format - The format string (follows fmt.Sprintf syntax)
+//	args   - Arguments for the format string
 //
 // Example:
-//   ctx := context.Background()
-//   ErrorLogCtxf(ctx, "Request failed: %v", err)
+//
+//	ctx := context.Background()
+//	ErrorLogCtxf(ctx, "Request failed: %v", err)
 func ErrorLogCtxf(ctx context.Context, format string, args ...interface{}) {
 	message := fmt.Sprintf(format, args...)
 	ErrorLogCtx(ctx, message)
@@ -234,13 +256,15 @@ func ErrorLogCtxf(ctx context.Context, format string, args ...interface{}) {
 // The context parameter is accepted for distributed tracing support.
 //
 // Parameters:
-//   ctx    - The context (can be used for tracing, cancellation, etc.)
-//   format - The format string (follows fmt.Sprintf syntax)
-//   args   - Arguments for the format string
+//
+//	ctx    - The context (can be used for tracing, cancellation, etc.)
+//	format - The format string (follows fmt.Sprintf syntax)
+//	args   - Arguments for the format string
 //
 // Example:
-//   ctx := context.Background()
-//   WarningLogCtxf(ctx, "API version %s is deprecated", oldVersion)
+//
+//	ctx := context.Background()
+//	WarningLogCtxf(ctx, "API version %s is deprecated", oldVersion)
 func WarningLogCtxf(ctx context.Context, format string, args ...interface{}) {
 	message := fmt.Sprintf(format, args...)
 	WarningLogCtx(ctx, message)
@@ -252,13 +276,15 @@ func WarningLogCtxf(ctx context.Context, format string, args ...interface{}) {
 // The context parameter is accepted for distributed tracing support.
 //
 // Parameters:
-//   ctx    - The context (can be used for tracing, cancellation, etc.)
-//   format - The format string (follows fmt.Sprintf syntax)
-//   args   - Arguments for the format string
+//
+//	ctx    - The context (can be used for tracing, cancellation, etc.)
+//	format - The format string (follows fmt.Sprintf syntax)
+//	args   - Arguments for the format string
 //
 // Example:
-//   ctx := context.Background()
-//   SuccessLogCtxf(ctx, "Processed %d records", count)
+//
+//	ctx := context.Background()
+//	SuccessLogCtxf(ctx, "Processed %d records", count)
 func SuccessLogCtxf(ctx context.Context, format string, args ...interface{}) {
 	message := fmt.Sprintf(format, args...)
 	SuccessLogCtx(ctx, message)
@@ -275,10 +301,12 @@ func SuccessLogCtxf(ctx context.Context, format string, args ...interface{}) {
 // to provide complete logging level support.
 //
 // Parameters:
-//   message - The warning message to log
+//
+//	message - The warning message to log
 //
 // Example:
-//   WarningLog("Database connection pool nearly exhausted")
+//
+//	WarningLog("Database connection pool nearly exhausted")
 //
 // Environment variables:
 //   - SAVE_LOG_FILE: Enable file logging (0 or 1)

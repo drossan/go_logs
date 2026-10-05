@@ -91,7 +91,7 @@ package main
 
 import (
     "os"
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func main() {
@@ -209,7 +209,7 @@ package main
 
 import (
     "os"
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func main() {
@@ -354,7 +354,7 @@ import (
     "encoding/csv"
     "bytes"
     "strings"
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 type CSVFormatter struct{}
@@ -406,7 +406,7 @@ package main
 import (
     "bytes"
     "encoding/xml"
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 type XMLEntry struct {
@@ -455,7 +455,7 @@ package main
 import (
     "bytes"
     "fmt"
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 type SyslogFormatter struct {

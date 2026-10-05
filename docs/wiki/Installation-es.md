@@ -6,7 +6,7 @@ Esta guia cubre la instalacion de go_logs y sus dependencias.
 
 ## Requisitos
 
-- **Go 1.21+** - Requerido para caracteristicas modernas de Go
+- **Go 1.27+** - Requerido para caracteristicas modernas de Go
 - **Go Modules** - La biblioteca usa Go modules para gestion de dependencias
 
 ## Metodos de Instalacion
@@ -16,13 +16,13 @@ Esta guia cubre la instalacion de go_logs y sus dependencias.
 Instalar la ultima version:
 
 ```bash
-go get github.com/drossan/go_logs@latest
+go get github.com/drossan/go_logs/v3@latest
 ```
 
 Instalar una version especifica:
 
 ```bash
-go get github.com/drossan/go_logs@v3.0.0
+go get github.com/drossan/go_logs/v3@latest
 ```
 
 ### Usando go.mod
@@ -30,7 +30,7 @@ go get github.com/drossan/go_logs@v3.0.0
 Agregar a tu archivo `go.mod`:
 
 ```
-require github.com/drossan/go_logs v3.0.0
+require github.com/drossan/go_logs/v3 v3.1.0
 ```
 
 Luego ejecutar:
@@ -64,7 +64,7 @@ package main
 
 import (
     "fmt"
-    "github.com/drossan/go_logs"
+    "github.com/drossan/go_logs/v3"
 )
 
 func main() {
@@ -111,7 +111,7 @@ func main() {
     }
 
     for _, dep := range bi.Deps {
-        if dep.Path == "github.com/drossan/go_logs" {
+        if dep.Path == "github.com/drossan/go_logs/v3" {
             fmt.Printf("Version de go_logs: %s\n", dep.Version)
         }
     }
@@ -135,7 +135,7 @@ El codigo v2 continua funcionando sin cambios:
 
 ```go
 // Codigo v2 - todavia funciona en v3
-import "github.com/drossan/go_logs"
+import "github.com/drossan/go_logs/v3"
 
 func main() {
     go_logs.Init()
@@ -146,7 +146,7 @@ func main() {
 Para usar caracteristicas v3 junto con v2:
 
 ```go
-import "github.com/drossan/go_logs"
+import "github.com/drossan/go_logs/v3"
 
 func main() {
     // API v2
@@ -165,8 +165,8 @@ Ver [Migracion v2 a v3](Migration-v2-to-v3-es.md) para una guia completa de migr
 ### Error: cannot find package
 
 ```
-cannot find package "github.com/drossan/go_logs" in any of:
-    /usr/local/go/src/github.com/drossan/go_logs (from $GOROOT)
+cannot find package "github.com/drossan/go_logs/v3" in any of:
+    /usr/local/go/src/github.com/drossan/go_logs/v3 (from $GOROOT)
 ```
 
 **Solucion**: Asegurate de que Go modules estan habilitados:
@@ -174,20 +174,20 @@ cannot find package "github.com/drossan/go_logs" in any of:
 ```bash
 export GO111MODULE=on
 go mod init tu-proyecto
-go get github.com/drossan/go_logs@latest
+go get github.com/drossan/go_logs/v3@latest
 ```
 
 ### Error: conflicto de version
 
 ```
-go: github.com/drossan/go_logs@v3.0.0: invalid version: unknown revision
+go: github.com/drossan/go_logs/v3@v3.0.0: invalid version: unknown revision
 ```
 
 **Solucion**: Actualiza tu go.mod y ejecuta `go mod tidy`:
 
 ```bash
 go mod tidy
-go get github.com/drossan/go_logs@latest
+go get github.com/drossan/go_logs/v3@latest
 ```
 
 ### Error: fatih/color no encontrado
@@ -256,7 +256,7 @@ Cuando uses Docker, asegurate de que las dependencias esten disponibles:
 
 ```dockerfile
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.27-alpine AS builder
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
@@ -282,7 +282,7 @@ steps:
   - name: Set up Go
     uses: actions/setup-go@v5
     with:
-      go-version: '1.21'
+      go-version: '1.27'
       cache: true
 
   - name: Download dependencies

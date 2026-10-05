@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/drossan/go_logs"
+	"github.com/drossan/go_logs/v3"
 )
 
 // Example_textFormatter demonstrates using TextFormatter for development.
