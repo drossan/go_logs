@@ -6,6 +6,13 @@ outline: [2, 3]
 
 Release notes for `github.com/drossan/go_logs`. Versions follow [Semantic Versioning](https://semver.org/); the Slack module `github.com/drossan/go_logs/slack/v3` is tagged separately as `slack/vX.Y.Z`.
 
+## v3.1.2 (2026-10-11)
+
+### 📖 Documentation
+
+- New look for this documentation site, aligned with the author's portfolio design system: light and dark themes, raised surfaces, translucent navigation, Geist typography (self-hosted) and an emerald-to-lime accent.
+- No changes to the library: the code is identical to `v3.1.1`.
+
 ## v3.1.1 (2026-10-11)
 
 ### 🩹 Fixes
