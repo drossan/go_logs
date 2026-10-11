@@ -132,25 +132,81 @@ func TestRedactor_RedactEmptyFields(t *testing.T) {
 }
 
 // TestRedactor_RedactCaseSensitive tests that redaction is case-sensitive
-func TestRedactor_RedactCaseSensitive(t *testing.T) {
-	redactor := NewRedactor("Password") // Capital P
+func TestRedactor_RedactCaseInsensitive(t *testing.T) {
+	redactor := NewRedactor("Password", "api_key")
 
 	entry := &Entry{
 		Message: "Login",
 		Fields: []Field{
-			String("Password", "secret123"), // Should be masked
-			String("password", "secret456"), // Should NOT be masked (case mismatch)
+			String("Password", "a"),
+			String("password", "b"),
+			String("API_KEY", "c"),
+			String("Authorization", "d"),
 		},
 	}
 
 	redactor.Redact(entry)
 
-	if entry.Fields[0].Value() != "***" {
-		t.Errorf("Expected Password to be masked, got %q", entry.Fields[0].Value())
+	for i := 0; i < 3; i++ {
+		if entry.Fields[i].Value() != "***" {
+			t.Errorf("field %q not masked: %v", entry.Fields[i].Key(), entry.Fields[i].Value())
+		}
 	}
+	if entry.Fields[3].Value() != "d" {
+		t.Errorf("Authorization is not configured and must not be masked, got %v", entry.Fields[3].Value())
+	}
+}
 
-	if entry.Fields[1].Value() != "secret456" {
-		t.Errorf("Expected password (lowercase) to not be masked, got %q", entry.Fields[1].Value())
+func TestRedactor_CommonKeysMixedCase(t *testing.T) {
+	redactor := NewRedactor(CommonSensitiveKeys()...)
+	entry := &Entry{Fields: []Field{
+		String("Authorization", "Bearer x"),
+		String("API_KEY", "k"),
+		String("Set-Cookie", "keep"),
+	}}
+
+	redactor.Redact(entry)
+
+	if entry.Fields[0].Value() != "***" || entry.Fields[1].Value() != "***" {
+		t.Errorf("Authorization/API_KEY must be masked, got %v / %v", entry.Fields[0].Value(), entry.Fields[1].Value())
+	}
+	if entry.Fields[2].Value() != "keep" {
+		t.Errorf("Set-Cookie is not an exact key, got %v", entry.Fields[2].Value())
+	}
+}
+
+func TestRedactor_NestedMaps(t *testing.T) {
+	redactor := NewRedactor(CommonSensitiveKeys()...)
+	headers := map[string]string{"Authorization": "Bearer x", "Accept": "json"}
+	payload := map[string]interface{}{
+		"user":  "bob",
+		"creds": map[string]interface{}{"Password": "p", "keep": 1},
+		"list":  []interface{}{map[string]interface{}{"token": "t"}, "plain"},
+	}
+	entry := &Entry{Fields: []Field{Any("headers", headers), Any("payload", payload)}}
+
+	redactor.Redact(entry)
+
+	gotH := entry.Fields[0].Value().(map[string]string)
+	if gotH["Authorization"] != "***" || gotH["Accept"] != "json" {
+		t.Errorf("headers not redacted correctly: %v", gotH)
+	}
+	gotP := entry.Fields[1].Value().(map[string]interface{})
+	if gotP["user"] != "bob" {
+		t.Errorf("non-sensitive value changed: %v", gotP["user"])
+	}
+	if c := gotP["creds"].(map[string]interface{}); c["Password"] != "***" || c["keep"] != 1 {
+		t.Errorf("nested creds not redacted correctly: %v", c)
+	}
+	if l := gotP["list"].([]interface{}); l[0].(map[string]interface{})["token"] != "***" || l[1] != "plain" {
+		t.Errorf("slice elements not redacted correctly: %v", l)
+	}
+	// The caller's data must be untouched.
+	if headers["Authorization"] != "Bearer x" {
+		t.Error("caller's map was mutated")
+	}
+	if payload["creds"].(map[string]interface{})["Password"] != "p" {
+		t.Error("caller's nested map was mutated")
 	}
 }
 

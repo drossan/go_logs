@@ -314,6 +314,8 @@ Campos comunes redactados por `WithCommonRedaction()`:
 | Sesion | cookie, session |
 | Financieros | credit_card, ssn, social_security |
 
+La coincidencia es por nombre de campo, **exacta y sin distinguir mayúsculas**: `Authorization` y `API_KEY` equivalen a `authorization` y `api_key`, pero `X-Api-Key` o `user_password` no coinciden. Los valores `map[string]interface{}`, `map[string]string` y `[]interface{}` pasados con `go_logs.Any(...)` se recorren de forma recursiva (los datos del llamante no se modifican). Los structs y otros tipos no se inspeccionan.
+
 ---
 
 ## Ver Tambien

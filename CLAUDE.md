@@ -260,7 +260,9 @@ Rotación por tamaño sin dependencias externas:
 Enmascara automáticamente campos sensibles:
 - password, passwd, pwd
 - token, secret, api_key, apikey
-- authorization, auth
+- authorization, auth, cookie, session, credit_card, ssn, social_security
+
+Coincidencia por nombre de campo exacto y **sin distinguir mayúsculas** (`Authorization` = `authorization`). Recorre de forma recursiva `map[string]interface{}`, `map[string]string` y `[]interface{}` dentro de `Any(...)` (sin mutar los datos del llamante); structs y otros tipos no se inspeccionan.
 
 ```go
 logger, _ := go_logs.New(
@@ -271,18 +273,19 @@ logger, _ := go_logs.New(
 
 ## Performance
 
-Números medidos en Apple M1 (`go test -bench=. -benchmem`, tarea 04), no estimados; reproducibles con los comandos de la sección anterior:
+Números medidos en Apple M1 el 2026-10-11 (`go test -run xxx -bench . -benchmem .`), no estimados; reproducibles con ese comando. Varían con hardware y versión de Go:
 
-| Métrica | Resultado | Target |
-|---------|-----------|--------|
-| Fast-path filtering (nivel filtrado) | ~8 ns/op, 0 allocs | < 50 ns |
-| Field creation (`Multiple`) | ~1.8 ns/op, 0 allocs | < 10 ns |
-| TextFormatter (entrada simple) | ~397 ns/op, 4 allocs | < 1 µs |
-| JSONFormatter (entrada simple) | ~1.4 µs/op, 4 allocs | < 2 µs |
-| `With()` child logger | ~630 ns/op, 14 allocs | - |
-| `RotatingFileWriter.Write` (flush sin fsync) | ~3.9 µs/op, 15 allocs | - |
-| Logger → JSON → `RotatingFileWriter` end-to-end | ~3.4 µs/op, 16 allocs | < 10 µs/op |
-| Logging concurrente (`-race`, varias goroutines) | ~1.9 µs/op, 15 allocs | - |
+| Métrica | Resultado |
+|---------|-----------|
+| Logger, nivel filtrado (`BenchmarkV3LevelFiltering`) | ~2,2 ns/op, 0 allocs |
+| Field creation | ~0,32 ns/op, 0 allocs |
+| TextFormatter (entrada simple) | ~187 ns/op, 4 allocs |
+| JSONFormatter (entrada simple) | ~387 ns/op, 4 allocs |
+| `With()` child logger | ~520 ns/op, 14 allocs |
+| Logger → JSON → `RotatingFileWriter` end-to-end | ~3,4 µs/op, 16 allocs |
+| Logging concurrente (`BenchmarkV3ConcurrentLogging`) | ~833 ns/op, 15 allocs |
+
+El ~0,32 ns pertenece a la creación de un campo y a `Level.ShouldLog` (una comparación); el coste real de llamar a un método filtrado del logger es el de la primera fila.
 
 Antes del fix de la tarea 04 (fsync por entrada vía `Sync()` en cada `writeEntry`), el end-to-end a fichero medía ~260 msg/s (~3,9 ms/op); con `Flush()` sin fsync baja a los ~3.4 µs/op de la tabla, muy por debajo del umbral informativo de 10 µs/op del plan.
 
@@ -341,7 +344,7 @@ Opciones:
 - 60+ test functions
 - 30+ benchmarks
 - Race detector clean
-- ~90% coverage en código crítico
+- ~81% de cobertura de sentencias (medido el 2026-10-11 con `go test -coverprofile`)
 
 ## Paquetes Opcionales
 

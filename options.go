@@ -2,6 +2,7 @@ package go_logs
 
 import (
 	"io"
+	"strings"
 )
 
 // IMPORTANT: The types and functions in this file are placeholders for Phase 1.
@@ -79,18 +80,22 @@ type Hook interface {
 }
 
 // Redactor masks sensitive data in log entries.
-// Will be implemented in Phase 6 (Security).
+//
+// Keys are matched case-insensitively ("Authorization", "API_KEY" and
+// "authorization" are the same key). Values of type map[string]interface{},
+// map[string]string and []interface{} inside AnyType fields are traversed
+// recursively. Structs and other types are not inspected.
 type Redactor struct {
 	sensitiveKeys map[string]bool
 	maskValue     string
 }
 
 // NewRedactor creates a new redactor with the given sensitive keys.
-// Will be implemented in Phase 6 (Security).
+// Keys are compared case-insensitively.
 func NewRedactor(keys ...string) *Redactor {
 	sensitiveKeys := make(map[string]bool)
 	for _, key := range keys {
-		sensitiveKeys[key] = true
+		sensitiveKeys[strings.ToLower(key)] = true
 	}
 	return &Redactor{
 		sensitiveKeys: sensitiveKeys,
@@ -98,18 +103,84 @@ func NewRedactor(keys ...string) *Redactor {
 	}
 }
 
+func (r *Redactor) isSensitive(key string) bool {
+	return r.sensitiveKeys[strings.ToLower(key)]
+}
+
 // Redact modifies the entry by masking sensitive field values.
-// Will be implemented in Phase 6 (Security).
 func (r *Redactor) Redact(entry *Entry) {
 	for i := range entry.Fields {
-		if r.sensitiveKeys[entry.Fields[i].Key()] {
+		f := entry.Fields[i]
+		if r.isSensitive(f.Key()) {
 			entry.Fields[i] = Field{
-				key:       entry.Fields[i].Key(),
-				valueType: entry.Fields[i].Type(),
+				key:       f.Key(),
+				valueType: f.Type(),
 				value:     r.maskValue,
+			}
+			continue
+		}
+		if f.Type() == AnyType {
+			if redacted, changed := r.redactValue(f.Value()); changed {
+				entry.Fields[i] = Field{key: f.Key(), valueType: AnyType, value: redacted}
 			}
 		}
 	}
+}
+
+// redactValue returns a masked copy of v when it contains sensitive keys.
+// The caller's data is never modified.
+func (r *Redactor) redactValue(v interface{}) (interface{}, bool) {
+	switch val := v.(type) {
+	case map[string]interface{}:
+		out := make(map[string]interface{}, len(val))
+		changed := false
+		for k, item := range val {
+			if r.isSensitive(k) {
+				out[k] = r.maskValue
+				changed = true
+				continue
+			}
+			nested, c := r.redactValue(item)
+			out[k] = nested
+			changed = changed || c
+		}
+		if !changed {
+			return v, false
+		}
+		return out, true
+	case map[string]string:
+		var out map[string]string
+		for k := range val {
+			if r.isSensitive(k) {
+				if out == nil {
+					out = make(map[string]string, len(val))
+					for k2, v2 := range val {
+						out[k2] = v2
+					}
+				}
+				out[k] = r.maskValue
+			}
+		}
+		if out == nil {
+			return v, false
+		}
+		return out, true
+	case []interface{}:
+		var out []interface{}
+		for i, item := range val {
+			if nested, c := r.redactValue(item); c {
+				if out == nil {
+					out = append([]interface{}(nil), val...)
+				}
+				out[i] = nested
+			}
+		}
+		if out == nil {
+			return v, false
+		}
+		return out, true
+	}
+	return v, false
 }
 
 // CommonSensitiveKeys returns a list of commonly sensitive field names.

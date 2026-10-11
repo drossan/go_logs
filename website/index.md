@@ -182,12 +182,14 @@ See [Installation](/installation) for detailed instructions.
 ## Performance Highlights
 
 | Operation | Performance |
-|-----------|-------------|
-| Fast-path filtering | 0.32 ns/op |
-| Field creation | 0.34 ns/op, 0 allocs |
-| TextFormatter | 220.6 ns/op |
-| JSONFormatter | 249.3 ns/op |
-| RotatingFileWriter | 16M msg/sec |
+|---|---|
+| Logger, filtered level (`BenchmarkV3LevelFiltering`) | 2.2 ns/op, 0 allocs |
+| Field creation | 0.32 ns/op, 0 allocs |
+| TextFormatter, simple entry | 187 ns/op, 4 allocs |
+| JSONFormatter, simple entry | 387 ns/op, 4 allocs |
+| Logger → JSON → RotatingFileWriter (end to end) | 3.4 µs/op (~300k msg/s), 16 allocs |
+
+Measured on Apple M1 (arm64) on 2026-10-11 with `go test -run xxx -bench . -benchmem .`; your numbers will vary with hardware and Go version. Reproduce with that command.
 
 See [Performance](/performance) for detailed benchmarks.
 
