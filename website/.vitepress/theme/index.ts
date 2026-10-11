@@ -1,4 +1,4 @@
-// Default VitePress theme with go_logs brand colors (custom.css); no custom components.
+// Default VitePress theme restyled with the portfolio design system (custom.css); no custom components.
 import DefaultTheme from 'vitepress/theme'
 import './custom.css'
 

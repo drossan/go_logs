@@ -28,7 +28,7 @@ The build fails on dead internal links (VitePress default; `ignoreDeadLinks` is 
 website/
 ├── .vitepress/
 │   ├── config.ts        # base, locales (en at /, es at /es/), nav, sidebar, search, footer
-│   └── theme/           # default theme + brand colors (custom.css)
+│   └── theme/           # default theme restyled with the portfolio design system (custom.css), Geist fonts in public/fonts
 ├── public/logo.svg
 ├── index.md             # home (layout: home)
 ├── changelog.md         # release notes

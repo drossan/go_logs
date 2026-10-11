@@ -152,7 +152,12 @@ export default defineConfig({
     },
   },
 
-  head: [['link', { rel: 'icon', type: 'image/svg+xml', href: '/go_logs/logo.svg' }]],
+  head: [
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/go_logs/logo.svg' }],
+    // The two latin subsets cover the text and the code; the latin-ext ones load on demand.
+    ['link', { rel: 'preload', as: 'font', type: 'font/woff2', crossorigin: '', href: '/go_logs/fonts/geist-latin.woff2' }],
+    ['link', { rel: 'preload', as: 'font', type: 'font/woff2', crossorigin: '', href: '/go_logs/fonts/geist-mono-latin.woff2' }],
+  ],
 
   themeConfig: {
     logo: '/logo.svg',
