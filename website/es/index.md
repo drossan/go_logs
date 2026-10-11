@@ -182,12 +182,14 @@ Ver [Instalacion](/es/installation) para instrucciones detalladas.
 ## Destacados de Rendimiento
 
 | Operacion | Rendimiento |
-|-----------|-------------|
-| Filtrado fast-path | 0.32 ns/op |
-| Creacion de campo | 0.34 ns/op, 0 allocs |
-| TextFormatter | 220.6 ns/op |
-| JSONFormatter | 249.3 ns/op |
-| RotatingFileWriter | 16M msg/seg |
+|---|---|
+| Logger, nivel filtrado (`BenchmarkV3LevelFiltering`) | 2.2 ns/op, 0 allocs |
+| Creación de campo | 0.32 ns/op, 0 allocs |
+| TextFormatter, entrada simple | 187 ns/op, 4 allocs |
+| JSONFormatter, entrada simple | 387 ns/op, 4 allocs |
+| Logger → JSON → RotatingFileWriter (de extremo a extremo) | 3.4 µs/op (~300k msg/s), 16 allocs |
+
+Medido en Apple M1 (arm64) el 2026-10-11 con `go test -run xxx -bench . -benchmem .`; tus cifras variarán según hardware y versión de Go. Reprodúcelas con ese comando.
 
 Ver [Rendimiento](/es/performance) para benchmarks detallados.
 

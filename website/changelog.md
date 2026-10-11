@@ -6,7 +6,19 @@ outline: [2, 3]
 
 Release notes for `github.com/drossan/go_logs`. Versions follow [Semantic Versioning](https://semver.org/); the Slack module `github.com/drossan/go_logs/slack/v3` is tagged separately as `slack/vX.Y.Z`.
 
-## v3.1.0 (unreleased)
+## v3.1.1 (2026-10-11)
+
+### 🩹 Fixes
+
+- Redaction (`WithRedactor`, `WithCommonRedaction`) now matches field names case-insensitively, so `Authorization` and `API_KEY` are masked. Before, only exact lowercase names matched.
+- Redaction now traverses `map[string]interface{}`, `map[string]string` and `[]interface{}` values passed with `go_logs.Any(...)`. The caller's data is not modified. Structs and other types are still not inspected.
+
+### 📖 Documentation
+
+- Performance figures replaced with measured ones (Apple M1, `go test -run xxx -bench . -benchmem .`): filtered log call ~2.2 ns, `TextFormatter` ~187 ns, `JSONFormatter` ~387 ns, Logger → JSON → file ~3.4 µs/op. The previous "0.32 ns fast-path" figure was the cost of creating a field, and "16M msg/sec" does not reproduce.
+- Test coverage stated as ~81 % (was "~90 %").
+
+## v3.1.0 (2026-10-11)
 
 First release that can actually be installed as v3: `go get github.com/drossan/go_logs/v3@v3.1.0`.
 

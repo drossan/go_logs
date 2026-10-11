@@ -400,7 +400,9 @@ logger.Info("user login",
 )
 ```
 
-Campos enmascarados por defecto: `password`, `passwd`, `pwd`, `token`, `secret`, `api_key`, `apikey`, `authorization`, `auth`.
+Campos enmascarados por defecto: `password`, `passwd`, `pwd`, `token`, `secret`, `api_key`, `apikey`, `api-key`, `authorization`, `auth`, `cookie`, `session`, `credit_card`, `ssn`, `social_security`.
+
+La coincidencia es por nombre de campo, **exacta y sin distinguir mayúsculas**: `Authorization` y `API_KEY` equivalen a `authorization` y `api_key`, pero `X-Api-Key` o `user_password` no coinciden. Los valores `map[string]interface{}`, `map[string]string` y `[]interface{}` pasados con `go_logs.Any(...)` se recorren de forma recursiva (los datos del llamante no se modifican). Los structs y otros tipos no se inspeccionan.
 
 ## Paquetes Opcionales
 
@@ -652,13 +654,15 @@ go_logs.SuccessLogCtx(ctx context.Context, message string)
 
 ## Performance
 
-| Métrica | Resultado | Target |
-|---------|-----------|--------|
-| Fast-path filtering | 0.32 ns/op | < 5 ns |
-| Field creation | 0.34 ns/op, 0 allocs | < 10 ns |
-| TextFormatter | 220.6 ns/op | < 500 ns |
-| JSONFormatter | 249.3 ns/op | < 1 µs |
-| RotatingFileWriter | 16M msg/sec | - |
+| Métrica | Resultado |
+|---|---|
+| Logger, nivel filtrado (`BenchmarkV3LevelFiltering`) | 2.2 ns/op, 0 allocs |
+| Creación de campo | 0.32 ns/op, 0 allocs |
+| TextFormatter, entrada simple | 187 ns/op, 4 allocs |
+| JSONFormatter, entrada simple | 387 ns/op, 4 allocs |
+| Logger → JSON → RotatingFileWriter (extremo a extremo) | 3.4 µs/op (~300k msg/s), 16 allocs |
+
+Medido en Apple M1 (arm64) el 2026-10-11 con `go test -run xxx -bench . -benchmem .`; tus cifras variarán según hardware y versión de Go. Reprodúcelas con ese comando.
 
 ## Sampling / Rate Limiting
 
@@ -802,7 +806,7 @@ GO111MODULE=on go tool cover -html=coverage.out
 
 - 60+ test functions
 - 30+ benchmarks
-- ~90% coverage en código crítico
+- ~81% de cobertura de sentencias (`go test -coverprofile=coverage.out ./...`, medido el 2026-10-11)
 - Race detector clean
 
 ## Documentación
@@ -814,7 +818,12 @@ GO111MODULE=on go tool cover -html=coverage.out
 
 ## Changelog
 
-### v3.1.0 (Actual)
+### v3.1.1 (Actual, 2026-10-11)
+
+- **Redactor**: la coincidencia de claves ya no distingue mayúsculas (`Authorization`, `API_KEY` se enmascaran) y recorre `map[string]interface{}`, `map[string]string` y `[]interface{}` dentro de `Any(...)` sin mutar los datos del llamante.
+- **Documentación**: cifras de rendimiento sustituidas por las medidas (Apple M1) y cobertura indicada como ~81 %.
+
+### v3.1.0 (2026-10-11)
 
 > **Nota de instalación**: las tags `v3.0.0`-`v3.0.4` se publicaron con `module github.com/drossan/go_logs` (sin el sufijo `/v3` que exige Go Modules), así que `go get github.com/drossan/go_logs/v3` nunca resolvió contra ellas. Son historia del proyecto, pero **nunca fueron instalables bajo `/v3`**; no hay nada que despublicar, solo documentarlo. `v3.1.0` es el primer tag con `go.mod` correcto (`module github.com/drossan/go_logs/v3`) y módulo único instalable.
 

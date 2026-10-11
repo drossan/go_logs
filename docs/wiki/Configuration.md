@@ -385,6 +385,8 @@ Common fields redacted by `WithCommonRedaction()`:
 | Session | cookie, session |
 | Financial | credit_card, ssn, social_security |
 
+Matching is by field name, **case-insensitive and exact**: `Authorization` and `API_KEY` match `authorization` and `api_key`, but `X-Api-Key` or `user_password` do not. Values of type `map[string]interface{}`, `map[string]string` and `[]interface{}` passed with `go_logs.Any(...)` are traversed recursively (the caller's data is not modified). Structs and other types are not inspected.
+
 ---
 
 ## Complete Examples

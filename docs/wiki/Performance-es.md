@@ -8,41 +8,35 @@ go_logs esta disenado para logging de alto rendimiento con sobrecarga minima. Es
 
 ### Operaciones Core
 
-| Operacion | Rendimiento | Objetivo |
-|-----------|-------------|----------|
-| Filtrado fast-path | 0.32 ns/op | < 5 ns |
-| Creacion de campo | 0.34 ns/op, 0 allocs | < 10 ns |
-| TextFormatter | 220.6 ns/op | < 500 ns |
-| JSONFormatter | 249.3 ns/op | < 1 us |
-| RotatingFileWriter | 16M msg/seg | - |
+| Operacion | Rendimiento |
+|-----------|-------------|
+| Logger, nivel filtrado (`BenchmarkV3LevelFiltering`) | 2.2 ns/op, 0 allocs |
+| Creación de campo | 0.32 ns/op, 0 allocs |
+| TextFormatter, entrada simple | 187 ns/op, 4 allocs |
+| JSONFormatter, entrada simple | 387 ns/op, 4 allocs |
+| Logger → JSON → RotatingFileWriter (de extremo a extremo) | 3.4 µs/op (~300k msg/s), 16 allocs |
+
+Medido en Apple M1 (arm64) el 2026-10-11 con `go test -run xxx -bench . -benchmem .`; tus cifras variarán según hardware y versión de Go. Reprodúcelas con ese comando.
 
 ### Benchmarks Detallados
 
-#### Filtrado de Nivel
+Salida de `go test -run xxx -bench . -benchmem .` (Apple M1, 2026-10-11):
 
 ```
-BenchmarkLevelShouldLog/TraceLevel-8         1000000000    0.32 ns/op    0 B/op    0 allocs/op
-BenchmarkLevelShouldLog/DebugLevel-8         1000000000    0.32 ns/op    0 B/op    0 allocs/op
-BenchmarkLevelShouldLog/InfoLevel-8          1000000000    0.32 ns/op    0 B/op    0 allocs/op
+BenchmarkV3LevelFiltering-8                532573428     2.224 ns/op      0 B/op     0 allocs/op
+BenchmarkV3FieldCreation-8                1000000000     0.3317 ns/op     0 B/op     0 allocs/op
+BenchmarkLevelShouldLog/Filtered-8        1000000000     0.3587 ns/op     0 B/op     0 allocs/op
+BenchmarkTextFormatter_SimpleEntry-8         6502068     186.6 ns/op    152 B/op     4 allocs/op
+BenchmarkTextFormatter_WithFields-8          1706208     704.9 ns/op    616 B/op    21 allocs/op
+BenchmarkJSONFormatter_SimpleEntry-8         3068571     387.2 ns/op    352 B/op     4 allocs/op
+BenchmarkJSONFormatter_WithFields-8           989826     1243 ns/op     904 B/op    17 allocs/op
+BenchmarkV3RotatingFileWriter-8              1000000     1201 ns/op    1284 B/op    16 allocs/op
+BenchmarkLoggerToRotatingFile-8               365101     3356 ns/op    1016 B/op    16 allocs/op
+BenchmarkV3ConcurrentLogging-8               1430082     833.4 ns/op   1026 B/op    15 allocs/op
+BenchmarkV3Redaction-8                        929787     1313 ns/op    1425 B/op    19 allocs/op
 ```
 
-#### Creacion de Campos
-
-```
-BenchmarkFieldString-8     1000000000    0.34 ns/op    0 B/op    0 allocs/op
-BenchmarkFieldInt-8        1000000000    0.34 ns/op    0 B/op    0 allocs/op
-BenchmarkFieldInt64-8      1000000000    0.34 ns/op    0 B/op    0 allocs/op
-```
-
-#### Rendimiento de Formateadores
-
-```
-BenchmarkTextFormatter/SinCampos-8           5000000    220.6 ns/op    128 B/op    3 allocs/op
-BenchmarkTextFormatter/5Campos-8             3000000    385.2 ns/op    256 B/op    5 allocs/op
-
-BenchmarkJSONFormatter/SinCampos-8           5000000    249.3 ns/op    192 B/op    4 allocs/op
-BenchmarkJSONFormatter/5Campos-8             3000000    425.6 ns/op    320 B/op    6 allocs/op
-```
+`BenchmarkV3LevelFiltering` es el coste de llamar a un método del logger cuyo nivel está filtrado. `BenchmarkLevelShouldLog` y la creación de campos miden solo una comparación o construir un struct, por eso bajan de 1 ns.
 
 ### Ejecutar Benchmarks
 
@@ -75,7 +69,7 @@ if level.shouldLog(threshold) { }        // 0 allocs
 El filtrado de nivel usa comparacion numerica (estilo syslog) para maxima velocidad:
 
 ```go
-// Esto es una sola comparacion de enteros (< 1ns)
+// Esto es una sola comparacion de enteros
 if entry.Level >= threshold {
     // Loguear la entrada
 }
@@ -128,7 +122,7 @@ logger, _ := go_logs.New(
 )
 ```
 
-Los logs filtrados tienen ~0.32 ns de sobrecarga (esencialmente gratis).
+Los logs filtrados cuestan ~2 ns por llamada y no reservan memoria.
 
 ### 2. Evitar Operaciones Costosas en Logs Filtrados
 

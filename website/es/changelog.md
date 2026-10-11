@@ -6,7 +6,19 @@ outline: [2, 3]
 
 Notas de versión de `github.com/drossan/go_logs`. Las versiones siguen [Semantic Versioning](https://semver.org/lang/es/); el módulo de Slack `github.com/drossan/go_logs/slack/v3` se etiqueta aparte como `slack/vX.Y.Z`.
 
-## v3.1.0 (sin publicar)
+## v3.1.1 (2026-10-11)
+
+### 🩹 Correcciones
+
+- La redacción (`WithRedactor`, `WithCommonRedaction`) compara ahora los nombres de campo sin distinguir mayúsculas, así que `Authorization` y `API_KEY` se enmascaran. Antes solo coincidían nombres exactos en minúsculas.
+- La redacción recorre ahora los valores `map[string]interface{}`, `map[string]string` y `[]interface{}` pasados con `go_logs.Any(...)`. Los datos del llamante no se modifican. Los structs y otros tipos siguen sin inspeccionarse.
+
+### 📖 Documentación
+
+- Cifras de rendimiento sustituidas por las medidas (Apple M1, `go test -run xxx -bench . -benchmem .`): llamada filtrada ~2,2 ns, `TextFormatter` ~187 ns, `JSONFormatter` ~387 ns, Logger → JSON → fichero ~3,4 µs/op. La cifra anterior de «0,32 ns fast-path» era el coste de crear un campo, y «16M msg/seg» no se reproduce.
+- Cobertura de tests indicada como ~81 % (antes «~90 %»).
+
+## v3.1.0 (2026-10-11)
 
 Primera versión que se puede instalar de verdad como v3: `go get github.com/drossan/go_logs/v3@v3.1.0`.
 

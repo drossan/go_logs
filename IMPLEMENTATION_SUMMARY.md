@@ -70,7 +70,7 @@ All v2 code continues to work without any changes, while users can gradually ado
 - Close idempotency
 - Sync functionality
 - Resume existing files
-- Performance benchmarking (16M msg/sec)
+- Performance benchmarking (end-to-end to file: ~3.4 µs/op, measured 2026-10-11)
 
 ### ✅ Phase 6: Security - Redactor
 **Commit**: `43b73a1`
@@ -188,7 +188,7 @@ All v2 code continues to work without any changes, while users can gradually ado
 ## Performance Metrics
 
 ### RotatingFileWriter
-- **Throughput**: 16M messages/second
+- **Throughput**: ~300k messages/second end to end (Logger → JSON → file, ~3.4 µs/op, Apple M1)
 - **Thread-safe**: Yes (mutex protected)
 - **Buffered**: Yes (bufio.Writer)
 - **Zero-copy**: No (uses buffered I/O for performance)
@@ -424,7 +424,7 @@ All 7 phases have been successfully implemented following TDD, Clean Architectur
 The library now provides:
 - Modern structured logging
 - Production-ready features (rotation, redaction, hooks)
-- Excellent performance (16M msg/sec)
+- Good performance (~3.4 µs per message end to end to a file)
 - Comprehensive documentation
 - Smooth migration path
 
