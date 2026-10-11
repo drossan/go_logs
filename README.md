@@ -818,7 +818,11 @@ GO111MODULE=on go tool cover -html=coverage.out
 
 ## Changelog
 
-### v3.1.1 (Actual, 2026-10-11)
+### v3.1.2 (Actual, 2026-10-11)
+
+- **Documentación**: nuevo aspecto del sitio (sistema de diseño del portfolio, temas claro/oscuro, Geist autoalojada). Sin cambios en el código de la librería.
+
+### v3.1.1 (2026-10-11)
 
 - **Redactor**: la coincidencia de claves ya no distingue mayúsculas (`Authorization`, `API_KEY` se enmascaran) y recorre `map[string]interface{}`, `map[string]string` y `[]interface{}` dentro de `Any(...)` sin mutar los datos del llamante.
 - **Documentación**: cifras de rendimiento sustituidas por las medidas (Apple M1) y cobertura indicada como ~81 %.
